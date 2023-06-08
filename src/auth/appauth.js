@@ -1,4 +1,5 @@
 import cryptojs from 'crypto-js';
+import { Wallet } from 'ethers';
 import { getDb } from '../db/utils.js';
 
 class AppAuth {
@@ -20,15 +21,22 @@ class AppAuth {
   }
 
   async verifyDbCipher() {
-    const db = getDb();
-    await db.read();
+    const db = await getDb();
     return this.verify(this.plaintext, db.data.auth);
   }
 
   async setDbCipher() {
-    const db = getDb();
+    const db = await getDb();
     db.data.auth = this.sign(this.plaintext);
     await db.write();
+  }
+
+  async verifyWallet(w) {
+    try {
+      return await new Wallet(this.read(w.pk)).getAddress() === w.address;
+    } catch {
+      return false;
+    }
   }
 
   compare({ plaintext, password }) {

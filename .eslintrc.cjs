@@ -9,8 +9,11 @@ module.exports = {
     sourceType: 'module',
   },
   rules: {
+    'no-shadow': 'off',
+    'no-plusplus': 'off',
     'no-console': 'off',
     'import/no-unresolved': 'off',
     'import/extensions': 'off',
+    'import/no-extraneous-dependencies': 'off',
   },
 };

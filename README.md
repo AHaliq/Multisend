@@ -30,7 +30,7 @@ the following are the commands you can run
 
 ### login
 ```
-multisend login <plaintext> <password>
+multisend login [plaintext] [password]
 ```
 - `password`: the app looks for a `.env` file for the password if it doesnt exists calling this command will generate the `.env` file
 - the password is used to encrypt and decrypt privatekeys stored in the database
@@ -44,7 +44,7 @@ multisend logout
 
 ### change login
 ```
-multisend changepw <plaintext> <password>
+multisend changepw [plaintext] [password]
 ```
 
 ---
@@ -53,33 +53,35 @@ multisend changepw <plaintext> <password>
 
 ### create wallets
 ```
-multisend create [role=<r>] [<N>]
+multisend create --role=[r] [N]
 ```
 - `r`: is the role to be set for the wallets, defaults to 2
 - `N`: the number of new wallets to create, by default `1`
 
 ### register wallets
 ```
-multisend register [role=<r>] <pks>
+multisend register --role=[r] [pks...]
 ```
 - `r`: is the role to be set for the wallets, defaults to 2
 
 ### purge wallet
 ```
-multisend purge <address>
-multisend unpurge <address> <pk> [<role>]
+multisend purge [address]
+multisend unpurge --role=[r] [address] [pk] 
 ```
 - `address`: the wallet address to purge or unpurge
 - `pk`: the private key to supply for the wallet, the call will fail if the pk does not match
-- `role`: role to set the wallet to, defaults to remain 0
+- `r`: role to set the wallet to, defaults to remain 0
 
 ### query
 ```
-multisend query [<role>] [<cid>]
+multisend query --role=[r] --callId=[cid] --address=[{address...}] --pk
 ```
 - returns all wallets registered in the database
-- `role`: filter by role
+- `r`: filter by role
 - `cid`: filter by cid
+- `address`: filter by address
+- `pk`: show the private key only
 
 ### verify
 ```
@@ -148,7 +150,7 @@ The database has the following tables
 table | fields | description
 -|-|-
 auth | cipher | the cipher text to authenticate passwords
-network | network_id, alias, rpc, chainid, gas | the networks available
-wallets | wallet_id, address, pk, role | registered wallets pk are encrypted with the login password
-calls | cid, network_id, type, commithash, timestamp | top level command line calls
-tx | txid, cid, wallet_id, hash, status, timestamp | each individual transaction
+network | networkId, alias, rpc, chainid, gas | the networks available
+wallets | walletId, address, pk, role | registered wallets pk are encrypted with the login password
+calls | cid, networkId, type, commithash, timestamp | top level command line calls
+tx | txid, cid, walletId, hash, status, timestamp | each individual transaction

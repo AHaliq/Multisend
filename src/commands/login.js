@@ -23,9 +23,10 @@ const handler = async (argv) => {
   const s = new AppAuthEnv(argv);
   if (!dbExists()) {
     setSigner(s);
+    s.createEnv();
     console.log('No database found, using credentials to create one');
 
-    await migration();
+    await migration(s);
     console.log('Database created\nSuccessfully logged in');
 
     return;
