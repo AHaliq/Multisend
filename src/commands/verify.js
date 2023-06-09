@@ -28,7 +28,7 @@ const handler = async ({ out }) => {
   const failedWallets = (await Promise.all(ws.map(
     async (w) => ({
       wallet: w,
-      verified: await s.verifyWallet(w),
+      verified: w.pk === undefined ? true : await s.verifyWallet(w),
     }),
   ))).filter(({ verified }) => !verified).map(({ wallet }) => wallet);
   // verify wallets

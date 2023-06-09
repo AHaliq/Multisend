@@ -12,6 +12,14 @@ Features:
 
 # User Guide
 
+## Authentication
+
+Authentication in the system involves creating a .env file upon successful login to store your password. This eliminates the need for re-authentication in future sessions. Logging out removes the .env file. The authentication process decrypts a cipher stored as auth in the database, matching it with the provided password for access. (todo)
+
+> currently .env is stored locally and theres a plaintext + password authentication
+
+## Wallet Roles
+
 each wallet registered in the app has a role
 
 role | meaning
@@ -21,75 +29,6 @@ role | meaning
 2 | transacting wallet
 
 > a purged wallet is a wallet with the private key removed from the database, thus it cant be used anymore. It differs from an unused wallet where despite being unused its private key is still in the database.
-
-the following are the commands you can run
-
----
-
-## Auth Operations
-
-### login
-```
-multisend login [plaintext] [password]
-```
-- `password`: the app looks for a `.env` file for the password if it doesnt exists calling this command will generate the `.env` file
-- the password is used to encrypt and decrypt privatekeys stored in the database
-- `plaintext`: the database also stores a cipher of this plaintext, thus decrypting the cipher with the password matching with the plaintext verifies the credentials
-
-### logout
-```
-multisend logout
-```
-- deletes the `.env` file to log you out
-
-### change login
-```
-multisend changepw [plaintext] [password]
-```
-
----
-
-## Wallet Operations
-
-### create wallets
-```
-multisend create --role=[r] [N]
-```
-- `r`: is the role to be set for the wallets, defaults to 2
-- `N`: the number of new wallets to create, by default `1`
-
-### register wallets
-```
-multisend register --role=[r] [pks...]
-```
-- `r`: is the role to be set for the wallets, defaults to 2
-
-### purge wallet
-```
-multisend purge [address]
-multisend unpurge --role=[r] [address] [pk] 
-```
-- `address`: the wallet address to purge or unpurge
-- `pk`: the private key to supply for the wallet, the call will fail if the pk does not match
-- `r`: role to set the wallet to, defaults to remain 0
-
-### query
-```
-multisend query --role=[r] --callId=[cid] --address=[{address...}] --pk
-```
-- returns all wallets registered in the database
-- `r`: filter by role
-- `cid`: filter by cid
-- `address`: filter by address
-- `pk`: show the private key only
-
-### verify
-```
-multisend verify
-```
-- checks if all pks match with wallet address in database
-
----
 
 ## Network Management
 
@@ -150,7 +89,7 @@ The database has the following tables
 table | fields | description
 -|-|-
 auth | cipher | the cipher text to authenticate passwords
-network | networkId, alias, rpc, chainid, gas | the networks available
-wallets | walletId, address, pk, role | registered wallets pk are encrypted with the login password
-calls | cid, networkId, type, commithash, timestamp | top level command line calls
-tx | txid, cid, walletId, hash, status, timestamp | each individual transaction
+network | id, alias, rpc, chainid, gas | the networks available
+wallets | id, address, pk, role | registered wallets pk are encrypted with the login password
+calls | id, networkId, type, commithash, timestamp | top level command line calls
+tx | tid, cid, wid, hash, status, timestamp | each individual transaction

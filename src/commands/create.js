@@ -1,8 +1,10 @@
 import { ethers } from 'ethers';
 import Spinnies from 'terminal-multi-spinners';
 import { getSigner } from '../auth/index.js';
-import { getDb, getWallets } from '../db/utils.js';
-import { INVALID_ROLE, NOT_LOGGED_IN, strToRole } from './utils.js';
+import { getDb, getWallets, getLargest } from '../db/utils.js';
+import {
+  INVALID_ROLE, NOT_LOGGED_IN, strToRole,
+} from './utils.js';
 
 const command = 'create [number]';
 
@@ -50,12 +52,14 @@ const handler = async (argv) => {
   }
   // validate if role is funding, only 1 wallet can be created
 
-  const fundingWallets = await getWallets({ role: 1 });
-  if (fundingWallets.length > 0) {
-    console.log(`Funding wallet(s) with id ${fundingWallets.map((w) => w.walletId)} already exists, setting them to unused role`);
-    const db = await getDb();
-    db.data.wallets = db.data.wallets.map((w) => ({ ...w, role: w.role === 1 ? 0 : w.role }));
-    await db.write();
+  if (r === 1) {
+    const fundingWallets = await getWallets({ role: 1 });
+    if (fundingWallets.length > 0) {
+      console.log(`Funding wallet(s) with id ${fundingWallets.map((w) => w.id)} already exists, setting them to unused role`);
+      const db = await getDb();
+      db.data.wallets = db.data.wallets.map((w) => ({ ...w, role: w.role === 1 ? 0 : w.role }));
+      await db.write();
+    }
   }
   // validate if funding wallet already exists
 
@@ -65,13 +69,13 @@ const handler = async (argv) => {
   // create spinner
 
   const db = await getDb();
-  let wid = db.data.wallets.reduce((acc, { walletId }) => Math.max(acc, walletId), 0);
-  // get largest walletId
+  let wid = getLargest(db.data.wallets, 'id');
+  // get largest id
 
   [...Array(n).keys()].map(() => ethers.Wallet.createRandom()).forEach((w, i) => {
     const epk = s.sign(w.privateKey);
     db.data.wallets.push({
-      walletId: ++wid, role: r, address: w.address, pk: epk,
+      id: ++wid, role: r, address: w.address, pk: epk,
     });
     spinnies.update('create', { text: `${i + 1}/${n}` });
   });

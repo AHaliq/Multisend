@@ -1,33 +1,14 @@
 import fs from 'fs';
-import { ethers } from 'ethers';
-import Table from 'cli-table3';
 import { getSigner } from '../auth/index.js';
-import {
-  strToRole, INVALID_ROLE, NOT_LOGGED_IN, roleToStr,
-} from './utils.js';
-import { getWallets } from '../db/utils.js';
+import { NOT_LOGGED_IN, rawWalletToTable } from './utils.js';
+import { builder as wfBuilder, handler as wfHandler } from './walletFilters.js';
 
 const command = 'query';
 
 const description = 'Query wallet information';
 
 const builder = (args) => {
-  args
-    .option('role', {
-      alias: 'r',
-      type: 'string',
-      describe: 'Filter wallets of this role',
-    })
-    .option('callId', {
-      alias: 'c',
-      type: 'number',
-      describe: 'Filter wallets with this callId',
-    })
-    .option('address', {
-      alias: 'a',
-      type: 'string',
-      describe: 'Select only this wallet address',
-    })
+  wfBuilder(args)
     .option('pk', {
       type: 'boolean',
       describe: 'Show private keys only',
@@ -36,6 +17,10 @@ const builder = (args) => {
       alias: 'o',
       type: 'string',
       describe: 'File path to output to',
+    })
+    .option('all', {
+      type: 'boolean',
+      describe: 'Show all wallet details including pk',
     });
 };
 
@@ -47,39 +32,16 @@ const handler = async (argv) => {
   }
   // auth
 
-  const {
-    role, callId, address, pk, out,
-  } = argv;
-  const r = role === undefined ? undefined : strToRole(role);
-  if (r !== undefined && r === null) {
-    console.log(INVALID_ROLE);
-    return;
-  }
-  // verify role
-
-  const c = callId === undefined ? undefined : Math.floor(callId);
-  if (c !== undefined && c < 0) {
-    console.log('CallId must be non-negative');
-    return;
-  }
-  // verify callId
-
-  const a = address === undefined ? undefined : address;
-  if (a !== undefined && !ethers.isAddress(a)) {
-    console.log('Invalid address');
-    return;
-  }
-  // verify address
-
-  const wallets = await getWallets({ role: r, callId: c, address: a });
-  if (wallets.length === 0) {
-    console.log('No wallets found');
+  const [wallets, err] = await wfHandler(argv, true);
+  if (err != null) {
+    console.log(err);
     return;
   }
   // no wallets found
 
+  const { pk, out, all } = argv;
   if (pk) {
-    const pks = wallets.map(({ pk: epk }) => s.read(epk)).join('\n');
+    const pks = wallets.map((w) => (w.pk !== undefined ? s.read(w.pk) : 'undefined')).join('\n');
     if (out === undefined) {
       console.log(pks);
       return;
@@ -96,15 +58,11 @@ const handler = async (argv) => {
   } else {
     const wdata = wallets.map((w) => {
       const { pk, ...rest } = w;
-      return rest;
+      return all ? { ...rest, pk: s.read(pk) } : w;
     });
     // TODO add argument to query balance given token contract address
     if (out === undefined) {
-      const table = new Table({ head: Object.keys(wdata[0]) });
-      wdata
-        .map((w) => ({ walletId: w.walletId, role: roleToStr(w.role), address: w.address }))
-        .forEach((w) => table.push(Object.values(w)));
-      console.log(table.toString());
+      console.log(rawWalletToTable(wdata, all));
       return;
     }
     // cli output non pk query

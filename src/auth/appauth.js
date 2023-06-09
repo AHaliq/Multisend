@@ -31,9 +31,9 @@ class AppAuth {
     await db.write();
   }
 
-  async verifyWallet(w) {
+  async verifyWallet(w, unencrypted = false) {
     try {
-      return await new Wallet(this.read(w.pk)).getAddress() === w.address;
+      return await new Wallet(unencrypted ? w.pk : this.read(w.pk)).getAddress() === w.address;
     } catch {
       return false;
     }
@@ -45,3 +45,7 @@ class AppAuth {
 }
 
 export default AppAuth;
+
+// TODO combine plaintext and password into one argument
+// TODO move login logic as a util
+// TODO call util login on every command if not logged in
