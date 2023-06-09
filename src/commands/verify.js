@@ -41,7 +41,7 @@ const handler = async ({ out }) => {
 
   console.log(`These ${failedWallets.length} wallet(s) failed verification`);
   const table = new Table({
-    head: failedWallets[0]?.keys ?? [],
+    head: failedWallets[0].keys(),
     colWidths: [null, null, null, 20],
     wordWrap: true,
   });

@@ -34,7 +34,7 @@ const handler = async (argv) => {
 
   const s = new AppAuthEnv(argv);
   const db = await getDb();
-  const ws = db.data.wallets ?? [];
+  const ws = db.data.wallets;
   db.data.wallets = ws.map((w) => ({ ...w, pk: s.sign(s2.read(w.pk)) }));
   await db.write();
   // re-encrypt pk entries with new password

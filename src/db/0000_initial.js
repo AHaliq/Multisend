@@ -5,8 +5,10 @@ const migration = async (signer) => {
   db.data = {
     auth: '', migration: 0, network: [], wallets: [], calls: [], tx: [],
   };
+  await db.write();
+  // setup tables
   await signer.setDbCipher();
-  // set cipher for auth and write to db
+  // set cipher for auth
 };
 
 export default migration;

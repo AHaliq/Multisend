@@ -65,7 +65,6 @@ const handler = async (argv) => {
   // create spinner
 
   const db = await getDb();
-  db.data.wallets = db.data.wallets ?? [];
   let wid = db.data.wallets.reduce((acc, { walletId }) => Math.max(acc, walletId), 0);
   // get largest walletId
 

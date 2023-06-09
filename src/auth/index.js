@@ -10,7 +10,7 @@ const getSigner = (tryLoadFromEnv = false) => {
   if (SIGNER !== null && SIGNER.verifyDbCipher()) return SIGNER;
   if (tryLoadFromEnv && AppAuthEnv.envExists()) {
     const s = new AppAuthEnv();
-    if (!s.verifyDbCipher()) return false;
+    if (!s.verifyDbCipher()) return null;
     setSigner(s);
     return SIGNER;
   }

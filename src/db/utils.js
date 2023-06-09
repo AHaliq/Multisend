@@ -15,9 +15,8 @@ const getDb = async (read = true, defaultData = {}) => {
 
 const getWalletsAtCallId = async (callId) => {
   const db = await getDb();
-  const wallets = db.data?.wallets ?? [];
+  const { wallets, calls } = db.data;
   if (callId === undefined) return wallets;
-  const calls = db.data?.calls ?? [];
 
   const callWallets = calls.filter((c) => c.callId === callId).map((c) => c.walletId);
   return wallets.filter((w) => callWallets.includes(w.walletId));
