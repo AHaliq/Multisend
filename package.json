@@ -2,10 +2,13 @@
   "name": "multisend",
   "version": "1.0.0",
   "description": "",
+  "main": "src/bin.ts",
+  "module": "src/index.ts",
   "type": "module",
-  "main": "src/index.js",
   "scripts": {
-    "exe": "node src/index.js",
+    "build": "rimraf dist && tsc",
+    "watch": "tsc -w",
+    "exe": "node dist/bin.js",
     "clean": "rm .env db.json",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -18,12 +21,23 @@
     "dotenv": "^16.1.4",
     "ethers": "^6.4.2",
     "lowdb": "^6.0.1",
-    "terminal-multi-spinners": "^0.4.4",
+    "project-name": "^1.0.0",
+    "readline-sync": "^1.4.10",
+    "spinnies": "^0.5.1",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
+    "@types/crypto-js": "^4.1.1",
+    "@types/node": "^20.2.6",
+    "@types/project-name": "^1.0.0",
+    "@types/readline-sync": "^1.4.4",
+    "@types/yargs": "^17.0.24",
+    "@typescript-eslint/eslint-plugin": "^5.59.9",
+    "@typescript-eslint/parser": "^5.59.9",
     "eslint": "^7.32.0 || ^8.2.0",
     "eslint-config-airbnb-base": "^15.0.0",
-    "eslint-plugin-import": "^2.25.2"
+    "eslint-plugin-import": "^2.25.2",
+    "rimraf": "^5.0.1",
+    "typescript": "^5.1.3"
   }
 }

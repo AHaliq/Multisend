@@ -92,4 +92,4 @@ auth | cipher | the cipher text to authenticate passwords
 network | id, alias, rpc, chainid, gas | the networks available
 wallets | id, address, pk, role | registered wallets pk are encrypted with the login password
 calls | id, networkId, type, commithash, timestamp | top level command line calls
-tx | tid, cid, wid, hash, status, timestamp | each individual transaction
+txs | tid, cid, wid, hash, status, timestamp | each individual transaction
