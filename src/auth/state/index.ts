@@ -10,9 +10,9 @@ class AuthState {
     this._signer = null;
   }
 
-  async #auth() {
+  async _auth() : Promise<AppSigner | null> {
     throw new Error(AuthState.VIRTUAL_ERR);
-    return null;
+    return Promise.resolve(null);
   }
 
   async unauth() {
@@ -32,9 +32,9 @@ class AuthState {
    * @param callback
    * @returns
    */
-  async authGuard(callback: (() => void)) {
+  async authGuard(callback: (() => void | Promise<void>)) {
     if (this.notAuthed()) {
-      this._signer = await this.#auth();
+      this._signer = await this._auth();
     }
     return callback();
   }

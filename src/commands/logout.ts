@@ -9,7 +9,6 @@ class Logout extends Command {
   override _description() {
     return 'Log out by deleting the session file';
   }
-  // TODO @ test alias
 
   override _handler() {
     return () => {

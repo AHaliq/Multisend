@@ -16,6 +16,7 @@ specifiers:
   eslint-plugin-import: ^2.25.2
   ethers: ^6.4.2
   lowdb: ^6.0.1
+  mkdirp: ^3.0.1
   project-name: ^1.0.0
   readline-sync: ^1.4.10
   rimraf: ^5.0.1
@@ -29,6 +30,7 @@ dependencies:
   dotenv: 16.1.4
   ethers: 6.4.2
   lowdb: 6.0.1
+  mkdirp: 3.0.1
   project-name: 1.0.0
   readline-sync: 1.4.10
   spinnies: 0.5.1
@@ -1459,6 +1461,12 @@ packages:
     resolution: {integrity: sha512-MzWSV5nYVT7mVyWCwn2o7JH13w2TBRmmSqSRCKzTw+lmft9X4z+3wjvs06Tzijo5z4W/kahUCDpRXTF+ZrmF/w==}
     engines: {node: '>=16 || 14 >=14.17'}
     dev: true
+
+  /mkdirp/3.0.1:
+    resolution: {integrity: sha512-+NsyUUAZDmo6YVHzL/stxSu3t9YS1iljliy3BSDrXJ/dkn1KYdmtZODGGjLcc9XLgVVpH4KshHB8XmZgMhaBXg==}
+    engines: {node: '>=10'}
+    hasBin: true
+    dev: false
 
   /ms/2.1.2:
     resolution: {integrity: sha512-sGkPx+VjMtmA6MX27oA4FBFELFCZZ4S4XqeGOXCv68tT+jb3vk/RyaKWP0PTKyWtmLSM0b+adUTEvbs1PEaH2w==}

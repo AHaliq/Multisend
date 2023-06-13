@@ -1,5 +1,7 @@
 import fs from 'fs';
 import dotenv from 'dotenv';
+import { mkdirp } from 'mkdirp';
+import path from 'path';
 import AppAuth from './index.js';
 import AppSigner from '../index.js';
 import DbState from '../../db/state.js';
@@ -9,6 +11,8 @@ import AppState from '../../state/index.js';
 class AuthStateCli extends AppAuth {
   /** filename of the env file */
   static ENVNAME = appPaths('config', '.env');
+
+  static MAX_ATTEMPTS = 3;
 
   #state: AppState;
 
@@ -33,7 +37,10 @@ class AuthStateCli extends AppAuth {
    * Requests password from user and authenticate with db's auth cipher
    * @override
    */
-  override async #auth() : Promise<AppSigner> {
+  override async _auth(tries = 0) : Promise<AppSigner> {
+    if (tries === AuthStateCli.MAX_ATTEMPTS) throw new Error(`Failed to authenticate after ${AuthStateCli.MAX_ATTEMPTS} attempts`);
+    // throw error if max attempts reached
+
     let pw:string | undefined;
     let cipher: string;
 
@@ -44,7 +51,7 @@ class AuthStateCli extends AppAuth {
     // try load password from .env file
 
     if (pw === undefined) {
-      pw = this.#state.io.prompt('Create password', true);
+      pw = this.#state.io.prompt(DbState.dbExists() ? 'Enter password' : 'Create password', true);
     }
     // prompt user for password if not found in .env file
 
@@ -54,18 +61,20 @@ class AuthStateCli extends AppAuth {
     if (DbState.dbExists()) {
       cipher = await this.#state.db.getAuth();
     } else {
-      throw new Error('authentication requires database entry "auth" to exist');
+      cipher = signer.genAuthCipher();
+      this.#state.db.setAuth(cipher);
     }
     // get auth cipher from db
 
     if (signer.verifyAuthCipher(cipher)) {
-      fs.writeFileSync(AuthStateCli.ENVNAME, `PASSWORD=${pw}`);
+      mkdirp.sync(path.dirname(AuthStateCli.ENVNAME));
+      fs.writeFileSync(AuthStateCli.ENVNAME, `PASSWORD=${pw}\n`);
       return signer;
     }
     // verify auth cipher
 
     this.#state.io.err('Password failed authentication');
-    return this.#auth();
+    return this._auth(tries + 1);
     // if auth fails, try again
   }
 

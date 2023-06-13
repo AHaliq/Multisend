@@ -1,4 +1,6 @@
 import fs from 'fs';
+import path from 'path';
+import { mkdirp } from 'mkdirp';
 import { Low } from 'lowdb';
 import { JSONFile } from 'lowdb/node';
 import migration from './index.js';
@@ -69,9 +71,24 @@ class DbState {
    * Persists the in memory database to the json file
    */
   async write() {
-    if (this.#dirty) return new Promise(() => {});
+    if (!this.#dirty) return Promise.resolve();
     this.#dirty = false;
+    mkdirp.sync(path.dirname(DbState.DBNAME));
     return this.#db.write();
+  }
+
+  /**
+   * Delete json file and reset in memory database
+   */
+  async purge() {
+    if (DbState.dbExists()) {
+      this.#db.data = emptyDb;
+      fs.unlinkSync(DbState.DBNAME);
+      this.#dirty = true;
+      this.#loaded = false;
+      return true;
+    }
+    return false;
   }
 
   /**
@@ -89,6 +106,10 @@ class DbState {
   }
 
   // public read operations ---------------------------------------------
+
+  async chain() {
+    return this.#db.data;
+  }
 
   /**
    * @returns the auth cipher

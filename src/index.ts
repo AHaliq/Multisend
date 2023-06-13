@@ -1,8 +1,10 @@
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import Logout from './commands/logout.js';
 import AppState from './state/index.js';
 import Command from './commands/index.js';
+import Logout from './commands/logout.js';
+import Login from './commands/login.js';
+import Delete from './commands/delete.js';
 
 type ExitCallback = () => void;
 type ExitCallbackWrapper = { func: null | ExitCallback };
@@ -17,7 +19,11 @@ const multisend = (
   const s:StatePkg = { genState, onExit };
   // prepare state generator
 
-  const cmds : Command[] = [new Logout(s)];
+  const cmds : Command[] = [
+    new Login(s),
+    new Logout(s),
+    new Delete(s),
+  ];
   cmds.reduce(
     (ya, cmd) => ya.command(cmd.gen()),
     yargs(hideBin(process.argv)),

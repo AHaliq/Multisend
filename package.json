@@ -21,6 +21,7 @@
     "dotenv": "^16.1.4",
     "ethers": "^6.4.2",
     "lowdb": "^6.0.1",
+    "mkdirp": "^3.0.1",
     "project-name": "^1.0.0",
     "readline-sync": "^1.4.10",
     "spinnies": "^0.5.1",
