@@ -12,8 +12,9 @@ class Logout extends Command {
 
   override _handler() {
     return () => {
-      this._guardSpkg();
-      this._appState?.io?.print(AuthStateCli.deleteEnv() ? 'Logged out successfully' : 'Already logged out');
+      this._guardSpkg(({ io }) => {
+        io.print(AuthStateCli.deleteEnv() ? 'Logged out successfully' : 'Already logged out');
+      });
     };
   }
 }

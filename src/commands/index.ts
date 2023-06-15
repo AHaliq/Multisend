@@ -1,6 +1,6 @@
 import { CommandModule } from 'yargs';
 import type { StatePkg } from '../index.js';
-import AppState from '../state/index.js';
+import AppState, { GuardCallback } from '../state/index.js';
 
 class Command {
   static VIRTUAL_ERROR = 'Virtual method must be overidden';
@@ -15,7 +15,7 @@ class Command {
     this.#spkg = spkg;
   }
 
-  _guardSpkg() {
+  async _guardSpkg(callback ?: GuardCallback) {
     if (this.#spkg === undefined) {
       throw new Error('State package was not provided');
     }
@@ -23,6 +23,10 @@ class Command {
       this._appState = this.#spkg.genState();
       this.#genAlready = true;
     }
+    if (callback !== undefined) {
+      return this._appState?.guard(callback);
+    }
+    return Promise.resolve();
   }
 
   #returnAndWarn<T>(str:T) {

@@ -33,6 +33,10 @@ class AuthStateCli extends AppAuth {
     return false;
   }
 
+  static writeEnv(pw: string) {
+    fs.writeFileSync(AuthStateCli.ENVNAME, `PASSWORD=${pw}\n`);
+  }
+
   /**
    * Requests password from user and authenticate with db's auth cipher
    * @override
@@ -68,7 +72,7 @@ class AuthStateCli extends AppAuth {
 
     if (signer.verifyAuthCipher(cipher)) {
       mkdirp.sync(path.dirname(AuthStateCli.ENVNAME));
-      fs.writeFileSync(AuthStateCli.ENVNAME, `PASSWORD=${pw}\n`);
+      AuthStateCli.writeEnv(pw);
       return signer;
     }
     // verify auth cipher

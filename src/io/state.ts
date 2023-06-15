@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import Spinnies from 'spinnies';
 import readlineSync from 'readline-sync';
 
@@ -36,6 +37,7 @@ class IOState {
     this.#spinner = undefined;
   }
 
+  // TODO auto add if not started
   spinner(
     name: string,
     text: string,
@@ -85,7 +87,7 @@ class IOState {
 
   err(...args: string[]) {
     this.#endSpinnerGuard();
-    console.error(...args);
+    console.error(chalk.red.bold.underline('ERROR:'), ...args.map((a) => chalk.red.inverse(a)));
   }
 
   warn(...args: string[]) {
@@ -97,6 +99,11 @@ class IOState {
     this.#endSpinnerGuard();
     return readlineSync.question(`${msg}\n> `, { hideEchoBack });
   }
+
+  promptYN(msg: string) {
+    return /(y|Y).*/gm.test(this.prompt(`${msg} [y/n]`));
+  }
 }
 
 export default IOState;
+export { SpinnerType };

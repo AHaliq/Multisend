@@ -11,14 +11,10 @@ class Login extends Command {
 
   override _handler() {
     return async () => {
-      this._guardSpkg();
-
-      try {
-        await this._appState?.auth.authGuard(() => this._appState?.io.print('Logged in successfully'));
+      this._guardSpkg(async () => {
+        this._appState?.io.print('Logged in successfully');
         await this._appState?.db.write();
-      } catch (e) {
-        this._appState?.io.err((e as Error).message);
-      }
+      });
     };
   }
 }

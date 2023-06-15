@@ -65,15 +65,22 @@ const reduceObjs = <T, U>(
  * @param key The key to get the largest value of
  * @returns The largest value
  */
-const getLargest = <T>(objs: T[], key: KeyOfType<T, number>) => reduceObjs(
+const getLargest = <T>(objs: T[], key: KeyOfType<T, number>, minimum = -Infinity) => reduceObjs(
   objs,
   key,
   'number',
   Math.max,
-  -Infinity,
-  -Infinity,
+  minimum,
+  minimum,
 );
 
+const asyncFilter = <T>(
+  arr: T[],
+  predicate: ((arg0: T, i: number) => Promise<boolean>),
+) => Promise.all(arr.map(predicate))
+    .then((results) => arr
+      .filter((_v, index) => results[index]));
+
 export {
-  reduceObjs, getLargest,
+  reduceObjs, getLargest, asyncFilter,
 };

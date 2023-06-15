@@ -27,16 +27,21 @@ class AuthState {
     return this._signer === null;
   }
 
+  isAuthed() {
+    return !this.notAuthed();
+  }
+
   /**
    * Attempts to authenticate if not authenticated before running callback
    * @param callback
    * @returns
    */
-  async authGuard(callback: (() => void | Promise<void>)) {
+  async authGuard(callback: ((signer: AppSigner) => void | Promise<void>)) {
     if (this.notAuthed()) {
       this._signer = await this._auth();
     }
-    return callback();
+    if (this._signer === null) throw new Error('Failed to authenticate');
+    return callback(this._signer);
   }
 
   getSigner() {

@@ -1,5 +1,6 @@
 import Command from './index.js';
 import AuthStateCli from '../auth/state/cli.js';
+import { SpinnerType } from '../io/state.js';
 
 class Delete extends Command {
   override _command() {
@@ -12,18 +13,18 @@ class Delete extends Command {
 
   override _handler() {
     return async () => {
-      this._guardSpkg();
-      await this._appState?.auth.authGuard(async () => {
-        const response = this._appState?.io?.prompt('Are you sure you want to delete all files created by this app? (y/n) ') ?? 'n';
-        if (/(Y|y).*/i.test(response)) {
-          if (AuthStateCli.deleteEnv()) this._appState?.io?.print('Deleted session file');
-          if (await this._appState?.db.purge()) {
-            this._appState?.io?.print('Deleted database file');
+      this._guardSpkg(async ({ db, io }) => {
+        if (io.promptYN('Are you sure you want to delete all files created by this app?')) {
+          if (AuthStateCli.deleteEnv()) io.print('Deleted session file');
+          if (await db.purge()) {
+            io.print('Deleted database file');
           } else {
-            this._appState?.io?.print('No database file found to delete');
+            io.print('No database file found to delete');
           }
+          io.spinner('delete', '');
+          io.spinner('delete', 'Delete completed', SpinnerType.SUCCEED);
         } else {
-          this._appState?.io?.print('Aborted');
+          io.print('Aborted');
         }
       });
     };

@@ -30,6 +30,7 @@ class AppSigner {
   }
 
   async verifyWalletEntry(wallet: WalletEntry) {
+    if (wallet.pk === undefined) return true;
     try {
       const { address, pk } = wallet;
       return await new Wallet(pk).getAddress() === address;

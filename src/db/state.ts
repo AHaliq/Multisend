@@ -5,17 +5,31 @@ import { Low } from 'lowdb';
 import { JSONFile } from 'lowdb/node';
 import migration from './index.js';
 import type Db from './schema.js';
-import { WalletRole, emptyDb } from './schema.js';
+import {
+  Call,
+  StrOfWalletRole, Tx, TxStatus, TxStatuses, Wallet, WalletPretty, WalletRole, WalletRoles, emptyDb,
+} from './schema.js';
 import appPaths from '../state/path.js';
 import { getLargest } from '../utils.js';
 import AppState from '../state/index.js';
 import AppSigner from '../auth/index.js';
 
+type PurgeState = 'all' | 'purged' | 'unpurged';
+const PurgeStates = {
+  ALL: 'all',
+  PURGED: 'purged',
+  UNPURGED: 'unpurged',
+};
+
 type WalletFilterOptions = {
+  id?: number;
   callId?: number;
   role?: WalletRole;
   address?: string;
+  purgeState?: PurgeState;
 }
+
+type WalletSplit = {existing: Wallet[], newWallets: Wallet[]};
 
 /**
  * Database state
@@ -129,38 +143,65 @@ class DbState {
    * @returns the largest wallet id
    */
   async getLargestWid() {
-    return this.#readProtect(async () => getLargest(this.#wallets(), 'id'));
+    return this.#readProtect(async () => getLargest(this.#wallets(), 'id', 0));
+  }
+
+  async getLargestTxid() {
+    return this.#readProtect(async () => getLargest(this.#txs(), 'id', 0));
+  }
+
+  async getLargestCallid() {
+    return this.#readProtect(async () => getLargest(this.#calls(), 'id', 0));
   }
 
   /**
    * Get the wallets satisfying the given filter arguments: role, callId, and address
    * If the argument is undefined it is not used as a filter
    * @param param0 the filter arguments
+   * @param signer if provided, the pk is decrypted and the role is a string; prettified
    * @returns wallets
    */
-  async getWallets({ callId, role, address }: WalletFilterOptions = {}) {
-    return this.#readProtect(
+  async getWallets({
+    id, callId, role, address, purgeState,
+  }: WalletFilterOptions = {}, signer: AppSigner | undefined = undefined)
+   : Promise<WalletPretty[]> {
+    const ws : Wallet[] = await this.#readProtect(
       async () => this.#walletsMatchCallId(
         callId,
         this.#walletMatchRole(
           role,
-          this.#walletMatchAddress(address),
+          this.#walletsMatchPurge(
+            purgeState,
+            this.#walletMatchAddress(
+              address,
+              this.#walletMatchId(id),
+            ),
+          ),
         ),
       ),
     );
+    return signer !== undefined ? ws.map((w) => ({
+      id: w.id,
+      address: w.address,
+      role: `${StrOfWalletRole[w.role]}${w.pk === undefined ? '(purged)' : ''}`,
+      pk: w.pk !== undefined ? signer.decrypt(w.pk) : w.pk,
+    })) : ws;
   }
 
   // private read helpers ---------------------------------------------
 
-  #wallets() {
+  #wallets(data ?: Wallet[]) {
+    if (data !== undefined) this.#db.data.wallets = data;
     return this.#db.data.wallets;
   }
 
-  #calls() {
+  #calls(data ?: Call[]) {
+    if (data !== undefined) this.#db.data.calls = data;
     return this.#db.data.calls;
   }
 
-  #txs() {
+  #txs(data ?: Tx[]) {
+    if (data !== undefined) this.#db.data.txs = data;
     return this.#db.data.txs;
   }
 
@@ -180,6 +221,20 @@ class DbState {
     return wallets.filter((w) => w.address.toLowerCase() === address.toLowerCase());
   }
 
+  #walletMatchId(id?: number, wallets = this.#wallets()) {
+    if (id === undefined) return wallets;
+    return wallets.filter((w) => w.id === id);
+  }
+
+  #walletsMatchPurge(purgeState?: PurgeState, wallets = this.#wallets()) {
+    if (purgeState === undefined || purgeState === PurgeStates.ALL) return wallets;
+    return wallets.filter(
+      (w) => (purgeState === PurgeStates.PURGED
+        ? w.pk === undefined
+        : w.pk !== undefined),
+    );
+  }
+
   // public write operations ---------------------------------------------
 
   setData(data: Db) {
@@ -191,6 +246,117 @@ class DbState {
     this.#db.data.auth = cipher;
     this.#dirty = true;
   }
+
+  addTxs(txs: Tx[]) {
+    this.#db.data.txs.push(...txs);
+    this.#dirty = true;
+  }
+
+  async createNewCall(op: string, networkId?: number, desc?: string) {
+    const id = (await this.getLargestCallid() ?? 0) + 1;
+    this.#calls().push({
+      id,
+      networkId,
+      op,
+      desc,
+      timestamp: Date.now(),
+    });
+    this.#dirty = true;
+    return id;
+  }
+
+  async filterExistingWallets(newWallets: Wallet[]) : Promise<WalletSplit> {
+    const wallets = this.#wallets().map((w) => w.address);
+    return newWallets.reduce(
+      ({ existing, newWallets } : WalletSplit, w : Wallet) => {
+        const exists = wallets.includes(w.address);
+        if (exists) return { existing: [...existing, w], newWallets };
+        return { existing, newWallets: [...newWallets, w] };
+      },
+      { existing: [], newWallets: [] },
+    );
+  }
+
+  async purgeWalletById(ids: number[]) {
+    this.#wallets(this.#wallets().map(
+      (w) => (ids.includes(w.id) ? { ...w, pk: undefined, role: 0 } : w),
+    ));
+    this.#dirty = true;
+  }
+
+  async addWallets(wallets: Wallet[]) {
+    const { existing, newWallets } = await this.filterExistingWallets(wallets);
+
+    if (newWallets.length === 0) return existing;
+    // early termination if no new wallets
+
+    this.#wallets().push(...newWallets);
+    // populate wallets table
+
+    const callId = await this.createNewCall(
+      'create',
+      undefined,
+      `${wallets.length} wallet${wallets.length === 1 ? '' : 's'}`,
+    );
+    // create call entry
+
+    const id = (await this.getLargestTxid() ?? 0) + 1;
+    this.addTxs(newWallets.map((w, i) => ({
+      id: id + i,
+      callId,
+      walletId: w.id,
+      hash: undefined,
+      status: TxStatuses.SUCCESS as TxStatus,
+      timestamp: Date.now(),
+    })));
+    // populate txs table
+
+    this.#dirty = true;
+
+    return existing;
+  }
+
+  updateWalletRole(id: number | number[], role: WalletRole) {
+    const is = this.#wallets().map((w, i) => ((typeof id === 'number' ? w.id === id : id.includes(w.id)) ? i : -1)).filter((i) => i !== -1);
+    if (is.length === 0) return false;
+    is.forEach((i) => {
+      const w = this.#wallets()[i];
+      if (w === undefined) throw new Error('impossible wallet not found');
+      w.role = role;
+    });
+    this.#dirty = true;
+    return true;
+  }
+
+  updateWalletPk(id: number, pk: string) {
+    const i = this.#wallets().findIndex((w) => w.id === id);
+    if (i === -1) return false;
+    const w = this.#wallets()[i];
+    if (w === undefined) return false;
+    w.pk = pk;
+    this.#dirty = true;
+    return true;
+  }
+
+  async fundingWalletExists() {
+    return (await this.getWallets({ role: WalletRoles.FUNDING as WalletRole })).length > 0;
+  }
+
+  async updateFundingRole(role: WalletRole) {
+    const fundingEntry = (await this.getWallets({ role: WalletRoles.FUNDING as WalletRole }))?.[0];
+    if (fundingEntry === undefined) return false;
+    return this.updateWalletRole(fundingEntry.id, role);
+  }
+
+  updateWalletsNewPassword(s2 : AppSigner) {
+    const s = this.#state.auth.getSigner();
+    if (s === null) throw new Error('no signer');
+    this.#wallets(this.#wallets().map((w) => ({
+      ...w,
+      pk: w.pk === undefined ? undefined : s2.sign(s.decrypt(w.pk)),
+    })));
+  }
 }
 
 export default DbState;
+export { WalletFilterOptions, PurgeState, PurgeStates };
