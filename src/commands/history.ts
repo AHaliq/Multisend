@@ -1,5 +1,5 @@
-import { ArgumentsCamelCase, Argv } from 'yargs';
-import Command from './index.js';
+import { Argv } from 'yargs';
+import Command, { StatesForHandler } from './index.js';
 import { objsToTableStr } from './utils.js';
 
 class History extends Command {
@@ -20,24 +20,20 @@ class History extends Command {
       });
   }
 
-  override _handler() {
-    return async (args: ArgumentsCamelCase) => {
-      this._guardSpkg(async ({ db, io }) => {
-        const cid = args.cid as number | undefined;
-        if (cid === undefined) {
-          const cs = await db.getCalls(undefined, true);
-          const str = objsToTableStr(cs);
-          io.print(str);
-          return;
-        }
-        const cs = await db.getCalls(cid, true);
-        const ts = await db.getTxs(cid, true);
-        const str1 = objsToTableStr(cs);
-        const str2 = objsToTableStr(ts);
-        io.print(str1);
-        io.print(str2);
-      });
-    };
+  override async _handler({ args, db, io } : StatesForHandler) {
+    const cid = args.cid as number | undefined;
+    if (cid === undefined) {
+      const cs = await db.getCalls(undefined, true);
+      const str = objsToTableStr(cs);
+      io.print(str);
+      return;
+    }
+    const cs = await db.getCalls(cid, true);
+    const ts = await db.getTxs(cid, true);
+    const str1 = objsToTableStr(cs);
+    const str2 = objsToTableStr(ts);
+    io.print(str1);
+    io.print(str2);
   }
 }
 

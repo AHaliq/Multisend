@@ -1,5 +1,5 @@
-import { ArgumentsCamelCase, Argv } from 'yargs';
-import Command from './index.js';
+import { Argv } from 'yargs';
+import Command, { StatesForHandler } from './index.js';
 import { getWalletFiltersOption, walletFiltersBuilder } from './utils.js';
 import { PurgeState, PurgeStates } from '../db/state.js';
 import { SpinnerType } from '../io/state.js';
@@ -17,37 +17,33 @@ class Purge extends Command {
     return async (args: Argv) => walletFiltersBuilder(args);
   }
 
-  override _handler() {
-    return async (args: ArgumentsCamelCase) => {
-      this._guardSpkg(async ({ db, io }) => {
-        const filter = getWalletFiltersOption(args);
-        const ws = (await db.getWallets(
-          {
-            ...filter,
-            purgeState: PurgeStates.UNPURGED as PurgeState,
-          },
-        ) ?? []);
+  override async _handler({ args, db, io } : StatesForHandler) {
+    const filter = getWalletFiltersOption(args);
+    const ws = (await db.getWallets(
+      {
+        ...filter,
+        purgeState: PurgeStates.UNPURGED as PurgeState,
+      },
+    ) ?? []);
 
-        if (ws.length === 0) {
-          io.print('No unpurged wallets matching the filter found');
-          return;
-        }
-        // verify matching wallets exists
+    if (ws.length === 0) {
+      io.print('No unpurged wallets matching the filter found');
+      return;
+    }
+    // verify matching wallets exists
 
-        io.print(`To Purge:\n- ${ws.map((w) => w.address).join('\n- ')}`);
-        if (!io.promptYN(`confirm purging the ${ws.length} above mentioned wallet(s)?`)) {
-          io.print('Aborted');
-          return;
-        }
-        // prompt confirmation
+    io.print(`To Purge:\n- ${ws.map((w) => w.address).join('\n- ')}`);
+    if (!io.promptYN(`confirm purging the ${ws.length} above mentioned wallet(s)?`)) {
+      io.print('Aborted');
+      return;
+    }
+    // prompt confirmation
 
-        const ids = ws.map((w) => w.id);
-        await db.purgeWalletById(ids);
-        io.spinner('purge', 'Purging wallets...');
-        io.spinner('purge', `Purged ${ids.length} wallets`, SpinnerType.SUCCEED);
-        await db.write();
-      });
-    };
+    const ids = ws.map((w) => w.id);
+    await db.purgeWalletById(ids);
+    io.spinner('purge', 'Purging wallets...');
+    io.spinner('purge', `Purged ${ids.length} wallets`, SpinnerType.SUCCEED);
+    await db.write();
   }
 }
 

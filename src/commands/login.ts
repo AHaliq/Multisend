@@ -9,13 +9,9 @@ class Login extends Command {
     return 'Log in by creating or reading a session file';
   }
 
-  override _handler() {
-    return async () => {
-      this._guardSpkg(async () => {
-        this._appState?.io.print('Logged in successfully');
-        await this._appState?.db.write();
-      });
-    };
+  override async _handler() {
+    this._appState?.io.print('Logged in successfully');
+    await this._appState?.db.write();
   }
 }
 

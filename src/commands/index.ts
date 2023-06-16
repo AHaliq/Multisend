@@ -1,6 +1,11 @@
-import { CommandModule } from 'yargs';
+import { ArgumentsCamelCase, CommandModule } from 'yargs';
 import type { StatePkg } from '../index.js';
 import AppState, { GuardCallback } from '../state/index.js';
+import IOState from '../io/state.js';
+import DbState from '../db/state.js';
+import AppSigner from '../auth/index.js';
+
+type StatesForHandler = { io : IOState, db:DbState, signer: AppSigner, args: ArgumentsCamelCase};
 
 class Command {
   static VIRTUAL_ERROR = 'Virtual method must be overidden';
@@ -55,8 +60,15 @@ class Command {
     return undefined;
   }
 
-  _handler() : CommandModule['handler'] {
-    return this.#returnAndWarn(() => {});
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async _handler(states : StatesForHandler) : Promise<void> {
+    this.#returnAndWarn(async () => {});
+  }
+
+  #wrapHandler() {
+    return async (args: ArgumentsCamelCase) => this._guardSpkg(
+      async (states) => this._handler({ ...states, args }),
+    );
   }
 
   gen() : CommandModule {
@@ -65,9 +77,10 @@ class Command {
       aliases: this._alias(),
       describe: this._description(),
       builder: this._builder(),
-      handler: this._handler(),
+      handler: this.#wrapHandler(),
     };
   }
 }
 
 export default Command;
+export { StatesForHandler };

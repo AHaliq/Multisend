@@ -1,4 +1,4 @@
-import Command from './index.js';
+import Command, { StatesForHandler } from './index.js';
 import AuthStateCli from '../auth/state/cli.js';
 
 class Logout extends Command {
@@ -10,12 +10,8 @@ class Logout extends Command {
     return 'Log out by deleting the session file';
   }
 
-  override _handler() {
-    return () => {
-      this._guardSpkg(({ io }) => {
-        io.print(AuthStateCli.deleteEnv() ? 'Logged out successfully' : 'Already logged out');
-      });
-    };
+  override async _handler({ io } : StatesForHandler) {
+    io.print(AuthStateCli.deleteEnv() ? 'Logged out successfully' : 'Already logged out');
   }
 }
 
