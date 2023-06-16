@@ -12,6 +12,7 @@ import Query from './commands/query.js';
 import Verify from './commands/verify.js';
 import Purge from './commands/purge.js';
 import UpdateRole from './commands/updateRole.js';
+import History from './commands/history.js';
 
 type ExitCallback = () => void;
 type ExitCallbackWrapper = { func: null | ExitCallback };
@@ -39,6 +40,8 @@ const multisend = (
     new Purge(s),
     new UpdateRole(s),
     // wallet
+    new History(s),
+    // calls
   ];
   cmds.reduce(
     (ya, cmd) => ya.command(cmd.gen()),

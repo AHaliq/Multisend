@@ -7,6 +7,7 @@ import migration from './index.js';
 import type Db from './schema.js';
 import {
   Call,
+  StrOfTxStatus,
   StrOfWalletRole, Tx, TxStatus, TxStatuses, Wallet, WalletPretty, WalletRole, WalletRoles, emptyDb,
 } from './schema.js';
 import appPaths from '../state/path.js';
@@ -186,6 +187,24 @@ class DbState {
       role: `${StrOfWalletRole[w.role]}${w.pk === undefined ? '(purged)' : ''}`,
       pk: w.pk !== undefined ? signer.decrypt(w.pk) : w.pk,
     })) : ws;
+  }
+
+  async getCalls(cid?: number, formatTimestamp = false) {
+    const cs = cid === undefined ? this.#calls() : this.#calls().filter((c) => c.id === cid);
+    return formatTimestamp ? cs.map((c) => ({
+      ...c,
+      timestamp: new Date(c.timestamp).toLocaleString(),
+    })) : cs;
+  }
+
+  async getTxs(cid?: number, pretty = false) {
+    const ts = cid === undefined ? this.#txs() : this.#txs().filter((t) => t.callId === cid);
+    return pretty ? ts.map((t) => ({
+      ...t,
+      walletId: this.#wallets().find((w) => w.id === t.walletId)?.address,
+      status: StrOfTxStatus[t.status],
+      timestamp: new Date(t.timestamp).toLocaleString(),
+    })) : ts;
   }
 
   // private read helpers ---------------------------------------------
