@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { ArgumentsCamelCase, CommandModule } from 'yargs';
 import type { StatePkg } from '../index.js';
 import AppState, { GuardCallback } from '../state/index.js';
@@ -60,7 +61,6 @@ class Command {
     return undefined;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async _handler(states : StatesForHandler) : Promise<void> {
     this.#returnAndWarn(async () => {});
   }

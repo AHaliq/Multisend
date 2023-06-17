@@ -41,7 +41,6 @@ class Purge extends Command {
 
     const ids = ws.map((w) => w.id);
     await db.purgeWalletById(ids);
-    io.spinner('purge', 'Purging wallets...');
     io.spinner('purge', `Purged ${ids.length} wallets`, SpinnerType.SUCCEED);
     await db.write();
   }

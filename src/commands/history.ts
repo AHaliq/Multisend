@@ -13,6 +13,12 @@ class History extends Command {
 
   override _builder() {
     return async (args: Argv) => args
+      .option('all', {
+        alias: 'a',
+        type: 'boolean',
+        default: false,
+        describe: 'Show all call ids',
+      })
       .option('cid', {
         alias: 'c',
         type: 'number',
@@ -21,8 +27,9 @@ class History extends Command {
   }
 
   override async _handler({ args, db, io } : StatesForHandler) {
-    const cid = args.cid as number | undefined;
-    if (cid === undefined) {
+    const cid = args.cid as number ?? await db.getLargestCallid();
+    const all = args.all as boolean ?? false;
+    if (all) {
       const cs = await db.getCalls(undefined, true);
       const str = objsToTableStr(cs);
       io.print(str);

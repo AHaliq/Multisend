@@ -81,6 +81,8 @@ const asyncFilter = <T>(
     .then((results) => arr
       .filter((_v, index) => results[index]));
 
+const splitAlias = (alias: string) => alias.matchAll(/^(.*?)(\d*)$/gm).next().value ?? [alias, ''];
+
 export {
-  reduceObjs, getLargest, asyncFilter,
+  reduceObjs, getLargest, asyncFilter, splitAlias,
 };

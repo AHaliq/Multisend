@@ -3,6 +3,7 @@ import { ArgumentsCamelCase, Argv } from 'yargs';
 import { WalletRole, WalletRoles, roleStrToId } from '../db/schema.js';
 import DbState, { WalletFilterOptions } from '../db/state.js';
 import IOState from '../io/state.js';
+import { splitAlias } from '../utils.js';
 
 /**
  * Prompt user to change funding wallet role or abort
@@ -92,9 +93,55 @@ const objsToTableStr = (
   return table.toString();
 };
 
+const verifyAlias = async (alias: string, io: IOState, db: DbState) => {
+  const splits = splitAlias(alias);
+  const baseAlias = splits[1];
+  let version = splits[2] ?? '';
+  // parse alias
+
+  const netFam = await db.getNetworks({ alias });
+  if (version === '') {
+    if (netFam.length > 0) {
+      if (!io.promptYN('Network with the same alias already exists, add as another version?')) {
+        io.print('Aborted');
+        return undefined;
+      }
+      version = netFam.length.toString();
+    }
+  } else if (version !== netFam.length.toString()) {
+    if (!io.promptYN(`Invalid version, must be the next version of the network: "${netFam.length}", proceed with new number?`)) {
+      io.print('Aborted');
+      return undefined;
+    }
+    version = netFam.length.toString();
+  }
+  return `${baseAlias}${version}`;
+  // validate against existing networks
+};
+
+/**
+ * Returns true if aborted
+ * @param rpc
+ * @param io
+ * @param db
+ * @returns
+ */
+const verifyRpc = async (rpc: string, io: IOState, db: DbState) => {
+  const ns = await db.getNetworks({ rpc });
+  if (ns.length > 0) {
+    if (!io.promptYN('Network with the same rpc already exists, proceed creating duplicate rpc?')) {
+      io.print('Aborted');
+      return true;
+    }
+  }
+  return false;
+};
+
 export {
   promptFundingChangeRole,
   walletFiltersBuilder,
   getWalletFiltersOption,
   objsToTableStr,
+  verifyAlias,
+  verifyRpc,
 };

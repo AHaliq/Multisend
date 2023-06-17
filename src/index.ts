@@ -13,6 +13,10 @@ import Verify from './commands/verify.js';
 import Purge from './commands/purge.js';
 import UpdateRole from './commands/updateRole.js';
 import History from './commands/history.js';
+import NetworkAdd from './commands/netAdd.js';
+import NetworkQuery from './commands/netQuery.js';
+import NetworkUpdate from './commands/netUpdate.js';
+import NetworkRemove from './commands/netRemove.js';
 
 type ExitCallback = () => void;
 type ExitCallbackWrapper = { func: null | ExitCallback };
@@ -42,6 +46,11 @@ const multisend = (
     // wallet
     new History(s),
     // calls
+    new NetworkAdd(s),
+    new NetworkQuery(s),
+    new NetworkUpdate(s),
+    new NetworkRemove(s),
+    // network
   ];
   cmds.reduce(
     (ya, cmd) => ya.command(cmd.gen()),

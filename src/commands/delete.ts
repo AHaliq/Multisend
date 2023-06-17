@@ -19,7 +19,6 @@ class Delete extends Command {
       } else {
         io.print('No database file found to delete');
       }
-      io.spinner('delete', '');
       io.spinner('delete', 'Delete completed', SpinnerType.SUCCEED);
     } else {
       io.print('Aborted');

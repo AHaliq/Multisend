@@ -36,8 +36,8 @@ type Network = {
   id: number;
   alias: string;
   rpc: string;
-  chainId: number;
-  gas: string;
+  chainId?: number;
+  gas?: number;
 }
 
 type Call = {

@@ -7,11 +7,12 @@ import migration from './index.js';
 import type Db from './schema.js';
 import {
   Call,
+  Network,
   StrOfTxStatus,
   StrOfWalletRole, Tx, TxStatus, TxStatuses, Wallet, WalletPretty, WalletRole, WalletRoles, emptyDb,
 } from './schema.js';
 import appPaths from '../state/path.js';
-import { getLargest } from '../utils.js';
+import { getLargest, splitAlias } from '../utils.js';
 import AppState from '../state/index.js';
 import AppSigner from '../auth/index.js';
 
@@ -57,15 +58,6 @@ class DbState {
     this.#state = state;
     const adapter = new JSONFile<Db>(DbState.DBNAME);
     this.#db = new Low<Db>(adapter, emptyDb);
-    const signer = state.auth.getSigner();
-    if (state.auth.notAuthed() && signer !== null) {
-      if (!DbState.dbExists()) {
-        migration(state, signer);
-      }
-      this.#dirty = true;
-      this.#loaded = false;
-      return;
-    }
     this.#dirty = false;
     this.#loaded = false;
   }
@@ -114,8 +106,12 @@ class DbState {
   async #readProtect<T>(call: () => T) {
     if (!this.#loaded) {
       await this.#read();
-      migration(this.#state, this.#state.auth.getSigner() as AppSigner, await this.getMigration());
-      // INFO do migration for writeProtect too
+      await migration(
+        this.#state,
+        this.#state.auth.getSigner() as AppSigner,
+        1 + (this.#db.data?.migration ?? -1),
+      );
+      this.#loaded = true;
     }
     return call();
   }
@@ -155,6 +151,10 @@ class DbState {
     return this.#readProtect(async () => getLargest(this.#calls(), 'id', 0));
   }
 
+  async getLargestNetworkid() {
+    return this.#readProtect(async () => getLargest(this.#networks(), 'id', 0));
+  }
+
   /**
    * Get the wallets satisfying the given filter arguments: role, callId, and address
    * If the argument is undefined it is not used as a filter
@@ -190,21 +190,41 @@ class DbState {
   }
 
   async getCalls(cid?: number, formatTimestamp = false) {
-    const cs = cid === undefined ? this.#calls() : this.#calls().filter((c) => c.id === cid);
-    return formatTimestamp ? cs.map((c) => ({
-      ...c,
-      timestamp: new Date(c.timestamp).toLocaleString(),
-    })) : cs;
+    return this.#readProtect(async () => {
+      const cs = cid === undefined ? this.#calls() : this.#calls().filter((c) => c.id === cid);
+      return formatTimestamp ? cs.map((c) => ({
+        ...c,
+        timestamp: new Date(c.timestamp).toLocaleString(),
+      })) : cs;
+    });
   }
 
   async getTxs(cid?: number, pretty = false) {
-    const ts = cid === undefined ? this.#txs() : this.#txs().filter((t) => t.callId === cid);
-    return pretty ? ts.map((t) => ({
-      ...t,
-      walletId: this.#wallets().find((w) => w.id === t.walletId)?.address,
-      status: StrOfTxStatus[t.status],
-      timestamp: new Date(t.timestamp).toLocaleString(),
-    })) : ts;
+    return this.#readProtect(async () => {
+      const ts = cid === undefined ? this.#txs() : this.#txs().filter((t) => t.callId === cid);
+      return pretty ? ts.map((t) => ({
+        ...t,
+        walletId: this.#wallets().find((w) => w.id === t.walletId)?.address,
+        status: StrOfTxStatus[t.status],
+        timestamp: new Date(t.timestamp).toLocaleString(),
+      })) : ts;
+    });
+  }
+
+  async getNetworks({ alias, rpc }: { alias?: string, rpc ?:string}) {
+    // eslint-disable-next-line no-nested-ternary
+    return this.#readProtect(async () => (alias === undefined
+      ? (rpc === undefined
+        ? this.#networks()
+        : this.#networks().filter((n) => n.rpc === rpc))
+      : this.#networks().filter(
+        (n) => new RegExp(`^${splitAlias(alias)[1]}(\\d*)$`, 'gm').test(n.alias),
+      )
+    ));
+  }
+
+  async getNetwork(alias: string) {
+    return this.#readProtect(async () => this.#networks().find((n) => n.alias === alias));
   }
 
   // private read helpers ---------------------------------------------
@@ -222,6 +242,11 @@ class DbState {
   #txs(data ?: Tx[]) {
     if (data !== undefined) this.#db.data.txs = data;
     return this.#db.data.txs;
+  }
+
+  #networks(data ?: Network[]) {
+    if (data !== undefined) this.#db.data.networks = data;
+    return this.#db.data.networks;
   }
 
   #walletsMatchCallId(callId?:number, wallets = this.#wallets()) {
@@ -266,8 +291,18 @@ class DbState {
     this.#dirty = true;
   }
 
+  setMigration(migration: number) {
+    this.#db.data.migration = migration;
+    this.#dirty = true;
+  }
+
   addTxs(txs: Tx[]) {
     this.#db.data.txs.push(...txs);
+    this.#dirty = true;
+  }
+
+  addNetwork(net: Network[]) {
+    this.#db.data.networks.push(...net);
     this.#dirty = true;
   }
 
@@ -365,6 +400,46 @@ class DbState {
     const fundingEntry = (await this.getWallets({ role: WalletRoles.FUNDING as WalletRole }))?.[0];
     if (fundingEntry === undefined) return false;
     return this.updateWalletRole(fundingEntry.id, role);
+  }
+
+  async updateNetwork(
+    alias: string,
+    rpc?: string,
+    chainId?: number,
+    gweiGasPrice?: number,
+    rename?: string,
+  ) {
+    const n = this.#networks().find((n) => n.alias === alias);
+    if (n === undefined) return false;
+    if (rpc !== undefined) n.rpc = rpc;
+    if (chainId !== undefined) n.chainId = chainId;
+    if (gweiGasPrice !== undefined) n.gas = gweiGasPrice;
+    if (rename !== undefined) {
+      await this.removeNetwork(alias);
+      this.addNetwork([{ ...n, alias: rename }]);
+    }
+    this.#dirty = true;
+    return true;
+  }
+
+  async removeNetwork(alias: string) {
+    const i = this.#networks().findIndex((n) => n.alias === alias);
+    if (i === -1) return false;
+    const splits = splitAlias(alias);
+    const baseAlias = splits[1];
+    const version = splits[2];
+    const v = version === '' ? 0 : parseInt(version, 10);
+    const ns = await this.getNetworks(baseAlias);
+    if (v < ns.length - 1) {
+      [...Array(ns.length - 1 - v).keys()].map((x) => x + v + 1).forEach((j) => {
+        const nj = this.#networks().findIndex((n) => n.alias === `${baseAlias}${j}`);
+        const n = this.#networks()[nj];
+        if (n !== undefined) n.alias = `${baseAlias}${j === 1 ? '' : j - 1}`;
+      });
+    }
+    this.#networks().splice(i, 1);
+    this.#dirty = true;
+    return true;
   }
 
   updateWalletsNewPassword(s2 : AppSigner) {

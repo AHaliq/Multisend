@@ -37,7 +37,6 @@ class IOState {
     this.#spinner = undefined;
   }
 
-  // TODO auto add if not started
   spinner(
     name: string,
     text: string,
@@ -50,9 +49,11 @@ class IOState {
     } else {
       switch (type) {
         case SpinnerType.SUCCEED:
+          if (!this.#spinnerFlags[name]) this.#spinner?.add(name, cobj);
           this.#spinner?.succeed(name, cobj);
           break;
         case SpinnerType.FAILED:
+          if (!this.#spinnerFlags[name]) this.#spinner?.add(name, cobj);
           this.#spinner?.fail(name, cobj);
           break;
         default:

@@ -76,7 +76,6 @@ class Register extends Command {
     // register wallet
 
     if (failed.length === 0) {
-      io.spinner('register', '');
       io.spinner('register', `Successfully registered wallet ${wallet.address}`, SpinnerType.SUCCEED);
       await db.write();
       return;
@@ -95,7 +94,6 @@ class Register extends Command {
     if (wdb.pk === undefined
               && db.updateWalletPk(wdb.id, signer.sign(pk))
               && db.updateWalletRole(wdb.id, ri)) {
-      io.spinner('register', '');
       io.spinner('register', `Unpurged wallet ${wallet.address}`, SpinnerType.SUCCEED);
       await db.write();
       return;
