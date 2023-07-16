@@ -17,8 +17,8 @@ import NetworkAdd from './commands/netAdd.js';
 import NetworkQuery from './commands/netQuery.js';
 import NetworkUpdate from './commands/netUpdate.js';
 import NetworkRemove from './commands/netRemove.js';
-import Ops from './commands/ops.js';
-import { opsmap } from './commands/opsDefinitions.js';
+import Ops from './commands/ops/index.js';
+import { opsmap } from './commands/ops/opsDefinitions.js';
 
 type ExitCallback = () => void;
 type ExitCallbackWrapper = { func: null | ExitCallback };

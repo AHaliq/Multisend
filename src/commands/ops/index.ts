@@ -1,9 +1,9 @@
 import { Argv } from 'yargs';
 import { JsonRpcProvider, ethers, Wallet } from 'ethers';
-import { getLargest } from '../utils.js';
-import { StatePkg } from '../index.js';
-import Command, { StatesForHandler } from './index.js';
-import { objsToTableStr, walletFiltersBuilder } from './utils.js';
+import { getLargest } from '../../utils.js';
+import { StatePkg } from '../../index.js';
+import Command, { StatesForHandler } from '../index.js';
+import { objsToTableStr, walletFiltersBuilder } from '../utils.js';
 import { defaultOps, op, opsmap } from './opsDefinitions.js';
 import {
   Call,
@@ -12,8 +12,8 @@ import {
   TxStatuses,
   WalletPretty,
   WalletRoles,
-} from '../db/schema.js';
-import { SpinnerType } from '../io/state.js';
+} from '../../db/schema.js';
+import { SpinnerType } from '../../io/state.js';
 
 type ValidatorErrors = { err: 'safe' | 'critical' };
 type ValidatorSuccess<T> = { err: 'none'; value: T };
