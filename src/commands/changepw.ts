@@ -11,7 +11,7 @@ class ChangePw extends Command {
     return 'Change password';
   }
 
-  override async _handler({ io, db } : StatesForHandler) {
+  override async _handler({ io, db }: StatesForHandler) {
     let pw;
     while (pw === undefined || pw === '') {
       pw = io.prompt('Enter new password', true);
@@ -33,7 +33,7 @@ class ChangePw extends Command {
     AuthStateCli.writeEnv(pw);
     // update .env file with new password
 
-    await db.write();
+    db.write();
     io.print('Password changed successfully');
   }
 }

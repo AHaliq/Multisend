@@ -12,14 +12,14 @@ class NetworkRemove extends Command {
   }
 
   override _builder() {
-    return async (args: Argv) => args
-      .positional('alias', {
+    return async (args: Argv) =>
+      args.positional('alias', {
         type: 'string',
         describe: 'Exact alias of the network',
       });
   }
 
-  override async _handler({ args, io, db } :StatesForHandler) {
+  override async _handler({ args, io, db }: StatesForHandler) {
     const alias = args.alias as string | undefined;
     if (alias === undefined) {
       io.err('NetworkRemove: Alias must be provided');
@@ -27,12 +27,12 @@ class NetworkRemove extends Command {
     }
     // validate alias
 
-    if (!await db.removeNetwork(alias)) {
+    if (!(await db.removeNetwork(alias))) {
       io.err(`NetworkRemove: No network registered with alias "${alias}"`);
       return;
     }
     io.spinner('nrm', 'Successfully removed network', SpinnerType.SUCCEED);
-    await db.write();
+    db.write();
   }
 }
 

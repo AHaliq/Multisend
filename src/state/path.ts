@@ -26,6 +26,7 @@ const appDirs = () => {
   }
 };
 
-const appPaths = (type : 'cache' | 'config' | 'data', filename: string) => path.join(appDirs()[type], name(), filename);
+const appPaths = (type: 'cache' | 'config' | 'data', filename: string) =>
+  path.join(appDirs()[type], name(), filename);
 
 export default appPaths;

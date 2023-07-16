@@ -4,13 +4,13 @@ import AppSigner from '../index.js';
 class AuthState {
   static VIRTUAL_ERR = 'Must be implemented in inheriting class';
 
-  _signer:AppSigner|null = null;
+  _signer: AppSigner | null = null;
 
   constructor() {
     this._signer = null;
   }
 
-  async _auth() : Promise<AppSigner | null> {
+  async _auth(): Promise<AppSigner | null> {
     throw new Error(AuthState.VIRTUAL_ERR);
     return Promise.resolve(null);
   }
@@ -36,7 +36,7 @@ class AuthState {
    * @param callback
    * @returns
    */
-  async authGuard(callback: ((signer: AppSigner) => void | Promise<void>)) {
+  async authGuard(callback: (signer: AppSigner) => void | Promise<void>) {
     if (this.notAuthed()) {
       this._signer = await this._auth();
     }

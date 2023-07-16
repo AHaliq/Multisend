@@ -1,15 +1,22 @@
 import fs from 'fs';
 import path from 'path';
 import { mkdirp } from 'mkdirp';
-import { Low } from 'lowdb';
-import { JSONFile } from 'lowdb/node';
+import { LowSync } from 'lowdb';
+import { JSONFileSync } from 'lowdb/node';
 import migration from './index.js';
 import type Db from './schema.js';
 import {
   Call,
   Network,
   StrOfTxStatus,
-  StrOfWalletRole, Tx, TxStatus, TxStatuses, Wallet, WalletPretty, WalletRole, WalletRoles, emptyDb,
+  StrOfWalletRole,
+  Tx,
+  TxStatuses,
+  Wallet,
+  WalletPretty,
+  WalletRole,
+  WalletRoles,
+  emptyDb,
 } from './schema.js';
 import appPaths from '../state/path.js';
 import { getLargest, splitAlias } from '../utils.js';
@@ -17,7 +24,11 @@ import AppState from '../state/index.js';
 import AppSigner from '../auth/index.js';
 
 type PurgeState = 'all' | 'purged' | 'unpurged';
-const PurgeStates = {
+const PurgeStates: {
+  ALL: PurgeState;
+  PURGED: PurgeState;
+  UNPURGED: PurgeState;
+} = {
   ALL: 'all',
   PURGED: 'purged',
   UNPURGED: 'unpurged',
@@ -26,12 +37,13 @@ const PurgeStates = {
 type WalletFilterOptions = {
   id?: number;
   callId?: number;
+  callIdFails?: boolean;
   role?: WalletRole;
   address?: string;
   purgeState?: PurgeState;
-}
+};
 
-type WalletSplit = {existing: Wallet[], newWallets: Wallet[]};
+type WalletSplit = { existing: Wallet[]; newWallets: Wallet[] };
 
 /**
  * Database state
@@ -56,8 +68,8 @@ class DbState {
    */
   constructor(state: AppState) {
     this.#state = state;
-    const adapter = new JSONFile<Db>(DbState.DBNAME);
-    this.#db = new Low<Db>(adapter, emptyDb);
+    const adapter = new JSONFileSync<Db>(DbState.DBNAME);
+    this.#db = new LowSync<Db>(adapter, emptyDb);
     this.#dirty = false;
     this.#loaded = false;
   }
@@ -77,7 +89,7 @@ class DbState {
   /**
    * Persists the in memory database to the json file
    */
-  async write() {
+  write() {
     if (!this.#dirty) return Promise.resolve();
     this.#dirty = false;
     mkdirp.sync(path.dirname(DbState.DBNAME));
@@ -162,120 +174,154 @@ class DbState {
    * @param signer if provided, the pk is decrypted and the role is a string; prettified
    * @returns wallets
    */
-  async getWallets({
-    id, callId, role, address, purgeState,
-  }: WalletFilterOptions = {}, signer: AppSigner | undefined = undefined)
-   : Promise<WalletPretty[]> {
-    const ws : Wallet[] = await this.#readProtect(
-      async () => this.#walletsMatchCallId(
+  async getWallets(
+    {
+      id,
+      callId,
+      callIdFails = true,
+      role,
+      address,
+      purgeState,
+    }: WalletFilterOptions = {},
+    signer: AppSigner | undefined = undefined,
+  ): Promise<WalletPretty[]> {
+    const ws: Wallet[] = await this.#readProtect(async () =>
+      this.#walletsMatchCallId(
         callId,
+        callIdFails,
         this.#walletMatchRole(
           role,
           this.#walletsMatchPurge(
             purgeState,
-            this.#walletMatchAddress(
-              address,
-              this.#walletMatchId(id),
-            ),
+            this.#walletMatchAddress(address, this.#walletMatchId(id)),
           ),
         ),
       ),
     );
-    return signer !== undefined ? ws.map((w) => ({
-      id: w.id,
-      address: w.address,
-      role: `${StrOfWalletRole[w.role]}${w.pk === undefined ? '(purged)' : ''}`,
-      pk: w.pk !== undefined ? signer.decrypt(w.pk) : w.pk,
-    })) : ws;
+    return signer !== undefined
+      ? ws.map(w => ({
+          id: w.id,
+          address: w.address,
+          role: `${StrOfWalletRole[w.role]}${
+            w.pk === undefined ? '(purged)' : ''
+          }`,
+          pk: w.pk !== undefined ? signer.decrypt(w.pk) : w.pk,
+        }))
+      : ws;
   }
 
   async getCalls(cid?: number, formatTimestamp = false) {
     return this.#readProtect(async () => {
-      const cs = cid === undefined ? this.#calls() : this.#calls().filter((c) => c.id === cid);
-      return formatTimestamp ? cs.map((c) => ({
-        ...c,
-        timestamp: new Date(c.timestamp).toLocaleString(),
-      })) : cs;
+      const cs =
+        cid === undefined
+          ? this.#calls()
+          : this.#calls().filter(c => c.id === cid);
+      return formatTimestamp
+        ? cs.map(c => ({
+            ...c,
+            timestamp: new Date(c.timestamp).toLocaleString(),
+          }))
+        : cs;
     });
   }
 
+  // TODO consider cleanup extract prettify functions
   async getTxs(cid?: number, pretty = false) {
     return this.#readProtect(async () => {
-      const ts = cid === undefined ? this.#txs() : this.#txs().filter((t) => t.callId === cid);
-      return pretty ? ts.map((t) => ({
-        ...t,
-        walletId: this.#wallets().find((w) => w.id === t.walletId)?.address,
-        status: StrOfTxStatus[t.status],
-        timestamp: new Date(t.timestamp).toLocaleString(),
-      })) : ts;
+      const ts =
+        cid === undefined
+          ? this.#txs()
+          : this.#txs().filter(t => t.callId === cid);
+      return pretty
+        ? ts.map(t => ({
+            ...t,
+            walletId: this.#wallets().find(w => w.id === t.walletId)?.address,
+            status: StrOfTxStatus[t.status],
+            timestamp: new Date(t.timestamp).toLocaleString(),
+          }))
+        : ts;
     });
   }
 
-  async getNetworks({ alias, rpc }: { alias?: string, rpc ?:string}) {
-    // eslint-disable-next-line no-nested-ternary
-    return this.#readProtect(async () => (alias === undefined
-      ? (rpc === undefined
-        ? this.#networks()
-        : this.#networks().filter((n) => n.rpc === rpc))
-      : this.#networks().filter(
-        (n) => new RegExp(`^${splitAlias(alias)[1]}(\\d*)$`, 'gm').test(n.alias),
-      )
-    ));
+  async getNetworks({ alias, rpc }: { alias?: string; rpc?: string }) {
+    return this.#readProtect(async () =>
+      alias === undefined
+        ? rpc === undefined
+          ? this.#networks()
+          : this.#networks().filter(n => n.rpc === rpc)
+        : this.#networks().filter(n =>
+            new RegExp(`^${splitAlias(alias)[1]}(\\d*)$`, 'gm').test(n.alias),
+          ),
+    );
   }
 
   async getNetwork(alias: string) {
-    return this.#readProtect(async () => this.#networks().find((n) => n.alias === alias));
+    return this.#readProtect(async () =>
+      this.#networks().find(n => n.alias === alias),
+    );
   }
 
   // private read helpers ---------------------------------------------
 
-  #wallets(data ?: Wallet[]) {
+  #wallets(data?: Wallet[]) {
     if (data !== undefined) this.#db.data.wallets = data;
     return this.#db.data.wallets;
   }
 
-  #calls(data ?: Call[]) {
+  #calls(data?: Call[]) {
     if (data !== undefined) this.#db.data.calls = data;
     return this.#db.data.calls;
   }
 
-  #txs(data ?: Tx[]) {
+  #txs(data?: Tx[]) {
     if (data !== undefined) this.#db.data.txs = data;
     return this.#db.data.txs;
   }
 
-  #networks(data ?: Network[]) {
+  #networks(data?: Network[]) {
     if (data !== undefined) this.#db.data.networks = data;
     return this.#db.data.networks;
   }
 
-  #walletsMatchCallId(callId?:number, wallets = this.#wallets()) {
+  #walletsMatchCallId(
+    callId?: number,
+    onlyFails = true,
+    wallets = this.#wallets(),
+  ) {
     if (callId === undefined) return wallets;
-    const callWallets = this.#txs().filter((t) => t.callId === callId).map((t) => t.walletId);
-    return wallets.filter((w) => callWallets.includes(w.id));
+    const callWallets = this.#txs()
+      .filter(
+        t =>
+          t.callId === callId && (!onlyFails || t.status === TxStatuses.ERROR),
+      )
+      .map(t => t.walletId);
+    return wallets.filter(w => callWallets.includes(w.id));
   }
 
-  #walletMatchRole(role?:WalletRole, wallets = this.#wallets()) {
+  #walletMatchRole(role?: WalletRole, wallets = this.#wallets()) {
     if (role === undefined) return wallets;
-    return wallets.filter((w) => w.role === role);
+    return wallets.filter(w => w.role === role);
   }
 
   #walletMatchAddress(address?: string, wallets = this.#wallets()) {
     if (address === undefined) return wallets;
-    return wallets.filter((w) => w.address.toLowerCase() === address.toLowerCase());
+    return wallets.filter(
+      w => w.address.toLowerCase() === address.toLowerCase(),
+    );
   }
 
   #walletMatchId(id?: number, wallets = this.#wallets()) {
     if (id === undefined) return wallets;
-    return wallets.filter((w) => w.id === id);
+    return wallets.filter(w => w.id === id);
   }
 
   #walletsMatchPurge(purgeState?: PurgeState, wallets = this.#wallets()) {
-    if (purgeState === undefined || purgeState === PurgeStates.ALL) return wallets;
-    return wallets.filter(
-      (w) => (purgeState === PurgeStates.PURGED
+    if (purgeState === undefined || purgeState === PurgeStates.ALL)
+      return wallets;
+    return wallets.filter(w =>
+      purgeState === PurgeStates.PURGED
         ? w.pk === undefined
-        : w.pk !== undefined),
+        : w.pk !== undefined,
     );
   }
 
@@ -306,23 +352,24 @@ class DbState {
     this.#dirty = true;
   }
 
-  async createNewCall(op: string, networkId?: number, desc?: string) {
-    const id = (await this.getLargestCallid() ?? 0) + 1;
+  async addCall(op: string, networkId?: number, desc?: string, args?: string) {
+    const id = ((await this.getLargestCallid()) ?? 0) + 1;
     this.#calls().push({
       id,
       networkId,
       op,
       desc,
+      args,
       timestamp: Date.now(),
     });
     this.#dirty = true;
     return id;
   }
 
-  async filterExistingWallets(newWallets: Wallet[]) : Promise<WalletSplit> {
-    const wallets = this.#wallets().map((w) => w.address);
+  async filterExistingWallets(newWallets: Wallet[]): Promise<WalletSplit> {
+    const wallets = this.#wallets().map(w => w.address);
     return newWallets.reduce(
-      ({ existing, newWallets } : WalletSplit, w : Wallet) => {
+      ({ existing, newWallets }: WalletSplit, w: Wallet) => {
         const exists = wallets.includes(w.address);
         if (exists) return { existing: [...existing, w], newWallets };
         return { existing, newWallets: [...newWallets, w] };
@@ -332,9 +379,11 @@ class DbState {
   }
 
   async purgeWalletById(ids: number[]) {
-    this.#wallets(this.#wallets().map(
-      (w) => (ids.includes(w.id) ? { ...w, pk: undefined, role: 0 } : w),
-    ));
+    this.#wallets(
+      this.#wallets().map(w =>
+        ids.includes(w.id) ? { ...w, pk: undefined, role: 0 } : w,
+      ),
+    );
     this.#dirty = true;
   }
 
@@ -347,22 +396,23 @@ class DbState {
     this.#wallets().push(...newWallets);
     // populate wallets table
 
-    const callId = await this.createNewCall(
+    const callId = await this.addCall(
       'create',
       undefined,
       `${wallets.length} wallet${wallets.length === 1 ? '' : 's'}`,
     );
     // create call entry
 
-    const id = (await this.getLargestTxid() ?? 0) + 1;
-    this.addTxs(newWallets.map((w, i) => ({
-      id: id + i,
-      callId,
-      walletId: w.id,
-      hash: undefined,
-      status: TxStatuses.SUCCESS as TxStatus,
-      timestamp: Date.now(),
-    })));
+    const id = ((await this.getLargestTxid()) ?? 0) + 1;
+    this.addTxs(
+      newWallets.map((w, i) => ({
+        id: id + i,
+        callId,
+        walletId: w.id,
+        status: TxStatuses.SUCCESS,
+        timestamp: Date.now(),
+      })),
+    );
     // populate txs table
 
     this.#dirty = true;
@@ -371,9 +421,13 @@ class DbState {
   }
 
   updateWalletRole(id: number | number[], role: WalletRole) {
-    const is = this.#wallets().map((w, i) => ((typeof id === 'number' ? w.id === id : id.includes(w.id)) ? i : -1)).filter((i) => i !== -1);
+    const is = this.#wallets()
+      .map((w, i) =>
+        (typeof id === 'number' ? w.id === id : id.includes(w.id)) ? i : -1,
+      )
+      .filter(i => i !== -1);
     if (is.length === 0) return false;
-    is.forEach((i) => {
+    is.forEach(i => {
       const w = this.#wallets()[i];
       if (w === undefined) throw new Error('impossible wallet not found');
       w.role = role;
@@ -383,7 +437,7 @@ class DbState {
   }
 
   updateWalletPk(id: number, pk: string) {
-    const i = this.#wallets().findIndex((w) => w.id === id);
+    const i = this.#wallets().findIndex(w => w.id === id);
     if (i === -1) return false;
     const w = this.#wallets()[i];
     if (w === undefined) return false;
@@ -393,11 +447,13 @@ class DbState {
   }
 
   async fundingWalletExists() {
-    return (await this.getWallets({ role: WalletRoles.FUNDING as WalletRole })).length > 0;
+    return (await this.getWallets({ role: WalletRoles.FUNDING })).length > 0;
   }
 
   async updateFundingRole(role: WalletRole) {
-    const fundingEntry = (await this.getWallets({ role: WalletRoles.FUNDING as WalletRole }))?.[0];
+    const fundingEntry = (
+      await this.getWallets({ role: WalletRoles.FUNDING })
+    )?.[0];
     if (fundingEntry === undefined) return false;
     return this.updateWalletRole(fundingEntry.id, role);
   }
@@ -406,10 +462,10 @@ class DbState {
     alias: string,
     rpc?: string,
     chainId?: number,
-    gweiGasPrice?: number,
+    gweiGasPrice?: bigint,
     rename?: string,
   ) {
-    const n = this.#networks().find((n) => n.alias === alias);
+    const n = this.#networks().find(n => n.alias === alias);
     if (n === undefined) return false;
     if (rpc !== undefined) n.rpc = rpc;
     if (chainId !== undefined) n.chainId = chainId;
@@ -423,7 +479,7 @@ class DbState {
   }
 
   async removeNetwork(alias: string) {
-    const i = this.#networks().findIndex((n) => n.alias === alias);
+    const i = this.#networks().findIndex(n => n.alias === alias);
     if (i === -1) return false;
     const splits = splitAlias(alias);
     const baseAlias = splits[1];
@@ -431,24 +487,30 @@ class DbState {
     const v = version === '' ? 0 : parseInt(version, 10);
     const ns = await this.getNetworks(baseAlias);
     if (v < ns.length - 1) {
-      [...Array(ns.length - 1 - v).keys()].map((x) => x + v + 1).forEach((j) => {
-        const nj = this.#networks().findIndex((n) => n.alias === `${baseAlias}${j}`);
-        const n = this.#networks()[nj];
-        if (n !== undefined) n.alias = `${baseAlias}${j === 1 ? '' : j - 1}`;
-      });
+      [...Array(ns.length - 1 - v).keys()]
+        .map(x => x + v + 1)
+        .forEach(j => {
+          const nj = this.#networks().findIndex(
+            n => n.alias === `${baseAlias}${j}`,
+          );
+          const n = this.#networks()[nj];
+          if (n !== undefined) n.alias = `${baseAlias}${j === 1 ? '' : j - 1}`;
+        });
     }
     this.#networks().splice(i, 1);
     this.#dirty = true;
     return true;
   }
 
-  updateWalletsNewPassword(s2 : AppSigner) {
+  updateWalletsNewPassword(s2: AppSigner) {
     const s = this.#state.auth.getSigner();
     if (s === null) throw new Error('no signer');
-    this.#wallets(this.#wallets().map((w) => ({
-      ...w,
-      pk: w.pk === undefined ? undefined : s2.sign(s.decrypt(w.pk)),
-    })));
+    this.#wallets(
+      this.#wallets().map(w => ({
+        ...w,
+        pk: w.pk === undefined ? undefined : s2.sign(s.decrypt(w.pk)),
+      })),
+    );
   }
 }
 

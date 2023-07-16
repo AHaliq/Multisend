@@ -17,14 +17,13 @@ class Purge extends Command {
     return async (args: Argv) => walletFiltersBuilder(args);
   }
 
-  override async _handler({ args, db, io } : StatesForHandler) {
+  override async _handler({ args, db, io }: StatesForHandler) {
     const filter = getWalletFiltersOption(args);
-    const ws = (await db.getWallets(
-      {
+    const ws =
+      (await db.getWallets({
         ...filter,
         purgeState: PurgeStates.UNPURGED as PurgeState,
-      },
-    ) ?? []);
+      })) ?? [];
 
     if (ws.length === 0) {
       io.print('No unpurged wallets matching the filter found');
@@ -32,17 +31,21 @@ class Purge extends Command {
     }
     // verify matching wallets exists
 
-    io.print(`To Purge:\n- ${ws.map((w) => w.address).join('\n- ')}`);
-    if (!io.promptYN(`confirm purging the ${ws.length} above mentioned wallet(s)?`)) {
+    io.print(`To Purge:\n- ${ws.map(w => w.address).join('\n- ')}`);
+    if (
+      !io.promptYN(
+        `confirm purging the ${ws.length} above mentioned wallet(s)?`,
+      )
+    ) {
       io.print('Aborted');
       return;
     }
     // prompt confirmation
 
-    const ids = ws.map((w) => w.id);
+    const ids = ws.map(w => w.id);
     await db.purgeWalletById(ids);
     io.spinner('purge', `Purged ${ids.length} wallets`, SpinnerType.SUCCEED);
-    await db.write();
+    db.write();
   }
 }
 

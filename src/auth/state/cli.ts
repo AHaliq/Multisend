@@ -41,11 +41,14 @@ class AuthStateCli extends AppAuth {
    * Requests password from user and authenticate with db's auth cipher
    * @override
    */
-  override async _auth(tries = 0) : Promise<AppSigner> {
-    if (tries === AuthStateCli.MAX_ATTEMPTS) throw new Error(`Failed to authenticate after ${AuthStateCli.MAX_ATTEMPTS} attempts`);
+  override async _auth(tries = 0): Promise<AppSigner> {
+    if (tries === AuthStateCli.MAX_ATTEMPTS)
+      throw new Error(
+        `Failed to authenticate after ${AuthStateCli.MAX_ATTEMPTS} attempts`,
+      );
     // throw error if max attempts reached
 
-    let pw:string | undefined;
+    let pw: string | undefined;
     let cipher: string;
 
     if (AuthStateCli.envExists()) {
@@ -55,7 +58,10 @@ class AuthStateCli extends AppAuth {
     // try load password from .env file
 
     if (pw === undefined) {
-      pw = this.#state.io.prompt(DbState.dbExists() ? 'Enter password' : 'Create password', true);
+      pw = this.#state.io.prompt(
+        DbState.dbExists() ? 'Enter password' : 'Create password',
+        true,
+      );
     }
     // prompt user for password if not found in .env file
 

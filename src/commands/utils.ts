@@ -1,6 +1,11 @@
 import Table from 'cli-table3';
 import { ArgumentsCamelCase, Argv } from 'yargs';
-import { WalletRole, WalletRoles, roleStrToId } from '../db/schema.js';
+import { Wallet } from 'ethers';
+import {
+  Wallet as WalletEntry,
+  WalletRoles,
+  roleStrToId,
+} from '../db/schema.js';
 import DbState, { WalletFilterOptions } from '../db/state.js';
 import IOState from '../io/state.js';
 import { splitAlias } from '../utils.js';
@@ -10,13 +15,22 @@ import { splitAlias } from '../utils.js';
  * @param state AppState instance to use for io
  * @returns true if aborted is triggered
  */
-const promptFundingChangeRole = async ({ db, io } : { db: DbState, io : IOState}) => {
+const promptFundingChangeRole = async ({
+  db,
+  io,
+}: {
+  db: DbState;
+  io: IOState;
+}) => {
   if (await db.fundingWalletExists()) {
-    const proceed = io.prompt('Funding wallet already exists\nSet it to new role or abort?\n(u(nused)/t(ransaction)/a(bort))') ?? 'a';
+    const proceed =
+      io.prompt(
+        'Funding wallet already exists\nSet it to new role or abort?\n(u(nused)/t(ransaction)/a(bort))',
+      ) ?? 'a';
     if (/^u.*/gm.test(proceed)) {
-      await db.updateFundingRole(WalletRoles.UNUSED as WalletRole);
+      await db.updateFundingRole(WalletRoles.UNUSED);
     } else if (/^t.*/gm.test(proceed)) {
-      await db.updateFundingRole(WalletRoles.TRANSACTION as WalletRole);
+      await db.updateFundingRole(WalletRoles.TRANSACTION);
     } else {
       io.print('Aborted');
       return true;
@@ -31,38 +45,42 @@ const promptFundingChangeRole = async ({ db, io } : { db: DbState, io : IOState}
  * @param args yargs object
  * @returns yargs object
  */
-const walletFiltersBuilder = (args: Argv) => args
-  .option('id', {
-    type: 'number',
-    describe: 'Filter for wallet id',
-  })
-  .option('role', {
-    alias: 'r',
-    type: 'string',
-    describe: 'Filter for wallet role',
-  })
-  .option('address', {
-    alias: 'a',
-    type: 'string',
-    describe: 'Filter for wallet address',
-  })
-  .option('callId', {
-    alias: 'c',
-    type: 'number',
-    describe: 'Filter for call id',
-  });
+const walletFiltersBuilder = (args: Argv) =>
+  args
+    .option('id', {
+      type: 'number',
+      describe: 'Filter for wallet id',
+    })
+    .option('role', {
+      alias: 'r',
+      type: 'string',
+      describe: 'Filter for wallet role',
+    })
+    .option('address', {
+      alias: 'a',
+      type: 'string',
+      describe: 'Filter for wallet address',
+    })
+    .option('callId', {
+      alias: 'c',
+      type: 'number',
+      describe: 'Filter for call id',
+    });
 
 /**
  * handler is assumed to be for a command with walletFiltersBuilder used in builder
  * @param args handler args
  * @returns WalletFilterOptions object
  */
-const getWalletFiltersOption = (args: ArgumentsCamelCase) : WalletFilterOptions => {
+const getWalletFiltersOption = (
+  args: ArgumentsCamelCase,
+): WalletFilterOptions => {
   const id = args.id as number | undefined;
-  const role = args.role === undefined ? undefined : roleStrToId(args.role as string);
+  const role =
+    args.role === undefined ? undefined : roleStrToId(args.role as string);
   const address = args.address as string | undefined;
   const callId = args.callId as number | undefined;
-  const obj : WalletFilterOptions = {};
+  const obj: WalletFilterOptions = {};
   if (id !== undefined) obj.id = id;
   if (role !== undefined) obj.role = role;
   if (address !== undefined) obj.address = address;
@@ -79,7 +97,7 @@ const getWalletFiltersOption = (args: ArgumentsCamelCase) : WalletFilterOptions 
  */
 const objsToTableStr = (
   objs: object[],
-  colWidths : number[] = [],
+  colWidths: number[] = [],
   wordWrap = false,
   wrapOnWordBoundary = false,
 ) => {
@@ -89,7 +107,7 @@ const objsToTableStr = (
     wordWrap,
     wrapOnWordBoundary,
   });
-  objs.forEach((obj) => table.push(Object.values(obj)));
+  objs.forEach(obj => table.push(Object.values(obj)));
   return table.toString();
 };
 
@@ -102,14 +120,22 @@ const verifyAlias = async (alias: string, io: IOState, db: DbState) => {
   const netFam = await db.getNetworks({ alias });
   if (version === '') {
     if (netFam.length > 0) {
-      if (!io.promptYN('Network with the same alias already exists, add as another version?')) {
+      if (
+        !io.promptYN(
+          'Network with the same alias already exists, add as another version?',
+        )
+      ) {
         io.print('Aborted');
         return undefined;
       }
       version = netFam.length.toString();
     }
   } else if (version !== netFam.length.toString()) {
-    if (!io.promptYN(`Invalid version, must be the next version of the network: "${netFam.length}", proceed with new number?`)) {
+    if (
+      !io.promptYN(
+        `Invalid version, must be the next version of the network: "${netFam.length}", proceed with new number?`,
+      )
+    ) {
       io.print('Aborted');
       return undefined;
     }
@@ -129,13 +155,23 @@ const verifyAlias = async (alias: string, io: IOState, db: DbState) => {
 const verifyRpc = async (rpc: string, io: IOState, db: DbState) => {
   const ns = await db.getNetworks({ rpc });
   if (ns.length > 0) {
-    if (!io.promptYN('Network with the same rpc already exists, proceed creating duplicate rpc?')) {
+    if (
+      !io.promptYN(
+        'Network with the same rpc already exists, proceed creating duplicate rpc?',
+      )
+    ) {
       io.print('Aborted');
       return true;
     }
   }
   return false;
 };
+
+const walletEntriesToWallet = (walletEntries: WalletEntry[]) =>
+  walletEntries
+    .map(we => we.pk ?? '')
+    .filter(pk => pk !== '')
+    .map(pk => new Wallet(pk));
 
 export {
   promptFundingChangeRole,
@@ -144,4 +180,5 @@ export {
   objsToTableStr,
   verifyAlias,
   verifyRpc,
+  walletEntriesToWallet,
 };

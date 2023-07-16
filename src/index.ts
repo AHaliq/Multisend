@@ -17,6 +17,8 @@ import NetworkAdd from './commands/netAdd.js';
 import NetworkQuery from './commands/netQuery.js';
 import NetworkUpdate from './commands/netUpdate.js';
 import NetworkRemove from './commands/netRemove.js';
+import Ops from './commands/ops.js';
+import { opsmap } from './commands/opsDefinitions.js';
 
 type ExitCallback = () => void;
 type ExitCallbackWrapper = { func: null | ExitCallback };
@@ -24,14 +26,14 @@ type StateGenerator = () => AppState;
 type StatePkg = { genState: StateGenerator; onExit: ExitCallbackWrapper };
 
 const multisend = (
-  // ops = [],
-  onExit:{func: null | ExitCallback } = { func: null },
+  ops: opsmap = {},
+  onExit: { func: null | ExitCallback } = { func: null },
 ) => {
-  const genState:StateGenerator = () => new AppState();
-  const s:StatePkg = { genState, onExit };
+  const genState: StateGenerator = () => new AppState();
+  const s: StatePkg = { genState, onExit };
   // prepare state generator
 
-  const cmds : Command[] = [
+  const cmds: Command[] = [
     new Login(s),
     new Logout(s),
     new Delete(s),
@@ -51,11 +53,12 @@ const multisend = (
     new NetworkUpdate(s),
     new NetworkRemove(s),
     // network
+    new Ops(s, ops),
   ];
-  cmds.reduce(
-    (ya, cmd) => ya.command(cmd.gen()),
-    yargs(hideBin(process.argv)),
-  ).parse();
+
+  cmds
+    .reduce((ya, cmd) => ya.command(cmd.gen()), yargs(hideBin(process.argv)))
+    .parse();
   // run cli app
 
   process.on('exit', () => {
@@ -63,6 +66,8 @@ const multisend = (
   });
   // run cleanup
 };
+
+multisend();
 
 export default multisend;
 export { StatePkg };

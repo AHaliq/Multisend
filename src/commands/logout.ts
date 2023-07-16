@@ -10,8 +10,12 @@ class Logout extends Command {
     return 'Log out by deleting the session file';
   }
 
-  override async _handler({ io } : StatesForHandler) {
-    io.print(AuthStateCli.deleteEnv() ? 'Logged out successfully' : 'Already logged out');
+  override async _handler({ io }: StatesForHandler) {
+    io.print(
+      AuthStateCli.deleteEnv()
+        ? 'Logged out successfully'
+        : 'Already logged out',
+    );
   }
 }
 

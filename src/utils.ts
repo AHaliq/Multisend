@@ -3,10 +3,10 @@
  */
 type KeyOfType<T, U> = keyof Pick<
   T,
-  {[K in keyof T]: T[K] extends U
-    ? K
-    : never
-  }[keyof T]>;
+  {
+    [K in keyof T]: T[K] extends U ? K : never;
+  }[keyof T]
+>;
 
 /**
  * Checks whether value is of type T and returns it if it is. Otherwise, it returns defaultValue.
@@ -19,11 +19,7 @@ const getOrDefault = <T>(
   value: unknown,
   defaultValue: T,
   typeCheck: (val: unknown) => val is T,
-): T => (
-    typeCheck(value)
-      ? value
-      : defaultValue
-  );
+): T => (typeCheck(value) ? value : defaultValue);
 
 /**
  * Reduces an array of objects based on a specific property of the objects, using a reducer
@@ -40,21 +36,23 @@ const getOrDefault = <T>(
 const reduceObjs = <T, U>(
   objs: T[],
   key: KeyOfType<T, U>,
-  typeCheck:string | ((val:unknown) => val is U),
-  reducer: ((acc:U, val:U) => U),
-  defaultVal:U,
-  initialVal:U,
-) => objs.reduce(
-    (acc, obj) => reducer(
-      acc,
-      getOrDefault(
-        obj[key],
-        defaultVal,
-        typeof typeCheck === 'string'
-          ? (val): val is U => typeof val === typeCheck
-          : typeCheck,
+  typeCheck: string | ((val: unknown) => val is U),
+  reducer: (acc: U, val: U) => U,
+  defaultVal: U,
+  initialVal: U,
+) =>
+  objs.reduce(
+    (acc, obj) =>
+      reducer(
+        acc,
+        getOrDefault(
+          obj[key],
+          defaultVal,
+          typeof typeCheck === 'string'
+            ? (val): val is U => typeof val === typeCheck
+            : typeCheck,
+        ),
       ),
-    ),
     initialVal,
   );
 
@@ -65,24 +63,43 @@ const reduceObjs = <T, U>(
  * @param key The key to get the largest value of
  * @returns The largest value
  */
-const getLargest = <T>(objs: T[], key: KeyOfType<T, number>, minimum = -Infinity) => reduceObjs(
-  objs,
-  key,
-  'number',
-  Math.max,
-  minimum,
-  minimum,
-);
+const getLargest = <T>(
+  objs: T[],
+  key: KeyOfType<T, number>,
+  minimum = -Infinity,
+) => reduceObjs(objs, key, 'number', Math.max, minimum, minimum);
 
 const asyncFilter = <T>(
   arr: T[],
-  predicate: ((arg0: T, i: number) => Promise<boolean>),
-) => Promise.all(arr.map(predicate))
-    .then((results) => arr
-      .filter((_v, index) => results[index]));
+  predicate: (arg0: T, i: number) => Promise<boolean>,
+) =>
+  Promise.all(arr.map(predicate)).then(results =>
+    arr.filter((_v, index) => results[index]),
+  );
 
-const splitAlias = (alias: string) => alias.matchAll(/^(.*?)(\d*)$/gm).next().value ?? [alias, ''];
+const splitAlias = (alias: string) =>
+  alias.matchAll(/^(.*?)(\d*)$/gm).next().value ?? [alias, ''];
+
+const parseAmt = (amt: string) =>
+  (([, , a, , b, c, d]) =>
+    (n =>
+      BigInt(a as string) * BigInt(10) ** BigInt(n) +
+      BigInt(b ?? 0) * BigInt(10) ** (BigInt(n) - BigInt((b ?? '').length)))(
+      c === 'g' ? 9 : d ?? 18,
+    ))(/((\d+)(\.(\d+))?)(g|e(\d+))?/gm.exec(amt) ?? []);
+
+const cancellablePromises = <T, U>(
+  promises: Promise<T>[],
+  cancel: Promise<U>,
+) => {
+  return Promise.all(promises.map(p => Promise.race([p, cancel])));
+};
 
 export {
-  reduceObjs, getLargest, asyncFilter, splitAlias,
+  reduceObjs,
+  getLargest,
+  asyncFilter,
+  splitAlias,
+  parseAmt,
+  cancellablePromises,
 };

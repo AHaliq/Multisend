@@ -6,7 +6,7 @@ import DbState from './state.js';
  * @param db
  * @param signer
  */
-const migration = async (db:DbState, signer:AppSigner) => {
+const migration = async (db: DbState, signer: AppSigner) => {
   console.log('Running migration 0');
   db.setAuth(signer.genAuthCipher());
   db.setMigration(0);

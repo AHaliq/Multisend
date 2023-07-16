@@ -11,7 +11,7 @@ class Login extends Command {
 
   override async _handler() {
     this._appState?.io.print('Logged in successfully');
-    await this._appState?.db.write();
+    this._appState?.db.write();
   }
 }
 

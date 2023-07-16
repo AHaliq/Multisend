@@ -1,17 +1,18 @@
 import chalk from 'chalk';
 import Spinnies from 'spinnies';
 import readlineSync from 'readline-sync';
+import { cancellablePromises as cpa } from '../utils.js';
 
 const SpinnerType = {
   PLAIN: 0,
   SUCCEED: 1,
   FAILED: 2,
 };
-type SpinnerType = typeof SpinnerType[keyof typeof SpinnerType];
+type SpinnerType = (typeof SpinnerType)[keyof typeof SpinnerType];
 
 type Spinners = {
   [name: string]: boolean;
-}
+};
 
 const spinnerColourConfig = (type: SpinnerType) => {
   switch (type) {
@@ -25,11 +26,11 @@ const spinnerColourConfig = (type: SpinnerType) => {
 };
 
 class IOState {
-  #spinnerStarted : boolean;
+  #spinnerStarted: boolean;
 
-  #spinnerFlags : Spinners;
+  #spinnerFlags: Spinners;
 
-  #spinner : Spinnies | undefined;
+  #spinner: Spinnies | undefined;
 
   constructor() {
     this.#spinnerStarted = false;
@@ -37,11 +38,7 @@ class IOState {
     this.#spinner = undefined;
   }
 
-  spinner(
-    name: string,
-    text: string,
-    type: SpinnerType = SpinnerType.PLAIN,
-  ) {
+  spinner(name: string, text: string, type: SpinnerType = SpinnerType.PLAIN) {
     this.#startSpinnerGuard();
     const cobj = { ...spinnerColourConfig(type), text };
     if (this.#spinnerFlags[name] && type === SpinnerType.PLAIN) {
@@ -88,7 +85,10 @@ class IOState {
 
   err(...args: string[]) {
     this.#endSpinnerGuard();
-    console.error(chalk.red.bold.underline('ERROR:'), ...args.map((a) => chalk.red.inverse(a)));
+    console.error(
+      chalk.red.bold.underline('ERROR:'),
+      ...args.map(a => chalk.red.inverse(a)),
+    );
   }
 
   warn(...args: string[]) {
@@ -103,6 +103,19 @@ class IOState {
 
   promptYN(msg: string) {
     return /(y|Y).*/gm.test(this.prompt(`${msg} [y/n]`));
+  }
+
+  async cancellablePromises<T>(
+    promises: Promise<T>[],
+    msg = 'press any key to cancel',
+  ) {
+    return cpa(
+      promises,
+      new Promise(resolve => {
+        readlineSync.question(msg);
+        resolve(new Error('cancelled'));
+      }),
+    );
   }
 }
 

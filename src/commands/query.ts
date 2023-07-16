@@ -1,7 +1,11 @@
 import fs from 'fs';
 import { Argv } from 'yargs';
 import Command, { StatesForHandler } from './index.js';
-import { getWalletFiltersOption, objsToTableStr, walletFiltersBuilder } from './utils.js';
+import {
+  getWalletFiltersOption,
+  objsToTableStr,
+  walletFiltersBuilder,
+} from './utils.js';
 
 class Query extends Command {
   override _command() {
@@ -13,43 +17,42 @@ class Query extends Command {
   }
 
   override _builder() {
-    return async (args: Argv) => walletFiltersBuilder(args)
-      .option('pk', {
-        type: 'boolean',
-        default: false,
-        describe: 'Show private key only',
-      })
-      .option('all', {
-        type: 'boolean',
-        default: false,
-        describe: 'Show all wallet info if pk is true',
-      })
-      .option('pkAll', {
-        type: 'boolean',
-        default: false,
-        describe: 'Show private key and all wallet info',
-      })
-      .option('out', {
-        alias: 'o',
-        type: 'string',
-        default: undefined,
-        describe: 'Output file',
-      });
+    return async (args: Argv) =>
+      walletFiltersBuilder(args)
+        .option('pk', {
+          type: 'boolean',
+          default: false,
+          describe: 'Show private key only',
+        })
+        .option('all', {
+          type: 'boolean',
+          default: false,
+          describe: 'Show all wallet info if pk is true',
+        })
+        .option('pkAll', {
+          type: 'boolean',
+          default: false,
+          describe: 'Show private key and all wallet info',
+        })
+        .option('out', {
+          alias: 'o',
+          type: 'string',
+          default: undefined,
+          describe: 'Output file',
+        });
   }
 
-  override async _handler({
-    args, signer, io, db,
-  } : StatesForHandler) {
+  override async _handler({ args, signer, io, db }: StatesForHandler) {
     const pkAll = args.pkAll as boolean;
-    const isPk = pkAll || args.pk as boolean;
-    const isAll = pkAll || args.all as boolean;
+    const isPk = pkAll || (args.pk as boolean);
+    const isAll = pkAll || (args.all as boolean);
     const out = args.out as string | undefined;
     const filter = getWalletFiltersOption(args);
-    let str : string;
-    const ws = (await db.getWallets(filter, signer) ?? []);
+    let str: string;
+    const ws = (await db.getWallets(filter, signer)) ?? [];
     if (isPk) {
       if (!isAll) {
-        str = ws.map((w) => w.pk).join('\n');
+        str = ws.map(w => w.pk).join('\n');
         // list or write private keys only
       } else if (out) {
         str = JSON.stringify(ws);
@@ -59,8 +62,10 @@ class Query extends Command {
         // list all wallet info as table
       }
     } else {
-      const wsNoPk = ws.map((w) => ({
-        id: w.id, role: w.role, address: w.address,
+      const wsNoPk = ws.map(w => ({
+        id: w.id,
+        role: w.role,
+        address: w.address,
       }));
       if (out) {
         str = JSON.stringify(wsNoPk);

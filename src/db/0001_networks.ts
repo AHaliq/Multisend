@@ -909,29 +909,30 @@ const rpcs = [
 ];
 const migration = async (db: DbState) => {
   console.log('Running migration 1');
-  const versions : { [key: string]: number} = {};
+  const versions: { [key: string]: number } = {};
   let id = await db.getLargestNetworkid();
-  db.addNetwork(rpcs.map(({ network, url, chainId }) => {
-    if (versions[network] === undefined) {
-      versions[network] = 0;
-    } else {
-      versions[network] += 1;
-    }
-    return {
-      id: ++id,
-      alias: versions[network] === 0 ? network : `${network}${versions[network]}`,
-      rpc: url,
-      // eslint-disable-next-line no-nested-ternary
-      chainId: (chainId === null || chainId === undefined
-        ? undefined
-        : (typeof chainId === 'string'
-          ? parseInt(chainId, 16)
-          : chainId
-        )
-      ),
-      gas: 0,
-    } as Network;
-  }));
+  db.addNetwork(
+    rpcs.map(({ network, url, chainId }) => {
+      if (versions[network] === undefined) {
+        versions[network] = 0;
+      } else {
+        versions[network] += 1;
+      }
+      return {
+        id: ++id,
+        alias:
+          versions[network] === 0 ? network : `${network}${versions[network]}`,
+        rpc: url,
+        chainId:
+          chainId === null || chainId === undefined
+            ? undefined
+            : typeof chainId === 'string'
+            ? parseInt(chainId, 16)
+            : chainId,
+        gas: BigInt(0),
+      } as Network;
+    }),
+  );
   db.setMigration(1);
   await db.write();
   return db;

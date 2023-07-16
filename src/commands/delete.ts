@@ -11,8 +11,12 @@ class Delete extends Command {
     return 'Delete all files created by this app';
   }
 
-  override async _handler({ db, io } : StatesForHandler) {
-    if (io.promptYN('Are you sure you want to delete all files created by this app?')) {
+  override async _handler({ db, io }: StatesForHandler) {
+    if (
+      io.promptYN(
+        'Are you sure you want to delete all files created by this app?',
+      )
+    ) {
       if (AuthStateCli.deleteEnv()) io.print('Deleted session file');
       if (await db.purge()) {
         io.print('Deleted database file');

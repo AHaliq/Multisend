@@ -6,22 +6,27 @@ import IOState from '../io/state.js';
 import DbState from '../db/state.js';
 import AppSigner from '../auth/index.js';
 
-type StatesForHandler = { io : IOState, db:DbState, signer: AppSigner, args: ArgumentsCamelCase};
+type StatesForHandler = {
+  io: IOState;
+  db: DbState;
+  signer: AppSigner;
+  args: ArgumentsCamelCase;
+};
 
 class Command {
   static VIRTUAL_ERROR = 'Virtual method must be overidden';
 
-  #spkg:StatePkg | undefined;
+  #spkg: StatePkg | undefined;
 
   #genAlready = false;
 
-  _appState : AppState | undefined;
+  _appState: AppState | undefined;
 
-  constructor(spkg?:StatePkg) {
+  constructor(spkg?: StatePkg) {
     this.#spkg = spkg;
   }
 
-  async _guardSpkg(callback ?: GuardCallback) {
+  async _guardSpkg(callback?: GuardCallback) {
     if (this.#spkg === undefined) {
       throw new Error('State package was not provided');
     }
@@ -35,7 +40,7 @@ class Command {
     return Promise.resolve();
   }
 
-  #returnAndWarn<T>(str:T) {
+  #returnAndWarn<T>(str: T) {
     try {
       this._guardSpkg();
       this._appState?.io?.warn(Command.VIRTUAL_ERROR);
@@ -45,33 +50,32 @@ class Command {
     }
   }
 
-  _command() : CommandModule['command'] {
+  _command(): CommandModule['command'] {
     return this.#returnAndWarn('cmd');
   }
 
-  _alias() : CommandModule['aliases'] {
+  _alias(): CommandModule['aliases'] {
     return undefined;
   }
 
-  _description() : CommandModule['describe'] {
+  _description(): CommandModule['describe'] {
     return this.#returnAndWarn('lorem ipsum');
   }
 
-  _builder() : CommandModule['builder'] {
+  _builder(): CommandModule['builder'] {
     return undefined;
   }
 
-  async _handler(states : StatesForHandler) : Promise<void> {
+  async _handler(states: StatesForHandler): Promise<void> {
     this.#returnAndWarn(async () => {});
   }
 
   #wrapHandler() {
-    return async (args: ArgumentsCamelCase) => this._guardSpkg(
-      async (states) => this._handler({ ...states, args }),
-    );
+    return async (args: ArgumentsCamelCase) =>
+      this._guardSpkg(async states => this._handler({ ...states, args }));
   }
 
-  gen() : CommandModule {
+  gen(): CommandModule {
     return {
       command: this._command(),
       aliases: this._alias(),
